@@ -59,23 +59,19 @@ export async function GET() {
       metrics.pendingOrders = orders.filter(o => o.payment_status === 'pending').length;
     }
 
-    // Get leads based on business type
+    // Get WhatsApp sessions as leads
+    const { data: sessions } = await supabase
+      .from('whatsapp_sessions')
+      .select('*')
+      .eq('user_id', user.id);
+
+    if (sessions) {
+      metrics.totalLeads = sessions.length;
+      metrics.activeCustomers = sessions.length;
+    }
+
+    // Get properties or services count based on business type
     if (businessType === 'real_estate') {
-      const { data: leads } = await supabase
-        .from('real_estate_leads')
-        .select('*')
-        .eq('user_id', user.id);
-
-      if (leads) {
-        metrics.totalLeads = leads.filter(l => l.status === 'new').length;
-        metrics.activeCustomers = leads.length;
-        const closedLeads = leads.filter(l => l.status === 'closed').length;
-        metrics.conversionRate = leads.length > 0 
-          ? Math.round((closedLeads / leads.length) * 100) 
-          : 0;
-      }
-
-      // Get properties count
       const { count: propertiesCount } = await supabase
         .from('properties')
         .select('*', { count: 'exact', head: true })
@@ -84,21 +80,6 @@ export async function GET() {
 
       metrics.pendingOrders = propertiesCount || 0;
     } else if (businessType === 'event_planning') {
-      const { data: leads } = await supabase
-        .from('event_planning_leads')
-        .select('*')
-        .eq('user_id', user.id);
-
-      if (leads) {
-        metrics.totalLeads = leads.filter(l => l.status === 'inquiry').length;
-        metrics.activeCustomers = leads.length;
-        const bookedLeads = leads.filter(l => l.status === 'booked').length;
-        metrics.conversionRate = leads.length > 0 
-          ? Math.round((bookedLeads / leads.length) * 100) 
-          : 0;
-      }
-
-      // Get services count
       const { count: servicesCount } = await supabase
         .from('services')
         .select('*', { count: 'exact', head: true })
@@ -107,17 +88,15 @@ export async function GET() {
       metrics.pendingOrders = servicesCount || 0;
     }
 
-    // Get recent notifications as activity
-    const { data: recentActivity } = await supabase
-      .from('notifications')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(5);
+    // Calculate conversion rate
+    if (metrics.totalLeads > 0) {
+      metrics.conversionRate = Math.round((metrics.totalSales / metrics.totalLeads) * 100);
+    }
 
-    const formattedActivity = recentActivity?.map(n => ({
-      title: n.title,
-      time: new Date(n.created_at).toLocaleString(),
+    // Get recent activity from orders
+    const formattedActivity = orders?.slice(0, 5).map(o => ({
+      title: `Order ${o.payment_status === 'completed' ? 'completed' : 'pending'}`,
+      time: new Date(o.created_at).toLocaleString(),
     })) || [];
 
     return NextResponse.json({

@@ -34,8 +34,12 @@ export default function LandingPage() {
     checkAuth()
 
     // Check if already installed (PWA mode)
-    if (window.matchMedia('(display-mode: standalone)').matches) {
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
+                         (window.navigator as any).standalone === true
+    
+    if (isStandalone) {
       setIsInstalled(true)
+      setIsInstallable(false)
     }
 
     // Listen for install prompt
@@ -43,12 +47,14 @@ export default function LandingPage() {
       e.preventDefault()
       setDeferredPrompt(e as BeforeInstallPromptEvent)
       setIsInstallable(true)
+      console.log('Install prompt available')
     }
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
 
     // Listen for successful install
     window.addEventListener('appinstalled', () => {
+      console.log('App installed successfully')
       setIsInstalled(true)
       setIsInstallable(false)
       setDeferredPrompt(null)
