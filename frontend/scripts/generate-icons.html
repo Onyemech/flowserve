@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>FlowServe AI Icon Generator</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: #f0f0f0;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #4A90E2;
+    }
+    canvas {
+      border: 1px solid #ddd;
+      margin: 10px;
+      border-radius: 8px;
+    }
+    .icons-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 20px;
+      margin-top: 20px;
+    }
+    .icon-item {
+      text-align: center;
+    }
+    button {
+      background: linear-gradient(135deg, #4A90E2 0%, #20C997 100%);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+      margin: 10px 5px;
+    }
+    button:hover {
+      opacity: 0.9;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>FlowServe AI - PWA Icon Generator</h1>
+    <p>This will generate all required PWA icons. Right-click each icon and "Save image as..." to download.</p>
+    
+    <button onclick="generateAllIcons()">Generate All Icons</button>
+    <button onclick="downloadAll()">Download All (as ZIP)</button>
+    
+    <div class="icons-grid" id="icons-container"></div>
+  </div>
+
+  <script>
+    const sizes = [72, 96, 128, 144, 152, 192, 384, 512];
+    
+    function drawIcon(canvas, size, isMaskable = false) {
+      const ctx = canvas.getContext('2d');
+      canvas.width = size;
+      canvas.height = size;
+      
+      // Background
+      const gradient = ctx.createLinearGradient(0, 0, size, size);
+      gradient.addColorStop(0, '#4A90E2');
+      gradient.addColorStop(1, '#20C997');
+      
+      if (isMaskable) {
+        // Maskable icons need safe zone (80% of size)
+        const padding = size * 0.1;
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, size, size);
+        
+        // Draw icon in safe zone
+        const iconSize = size * 0.6;
+        const iconX = (size - iconSize) / 2;
+        const iconY = (size - iconSize) / 2;
+        drawLightningBolt(ctx, iconX, iconY, iconSize, '#FFFFFF');
+      } else {
+        // Regular icon with rounded corners
+        const radius = size * 0.2;
+        ctx.fillStyle = gradient;
+        roundRect(ctx, 0, 0, size, size, radius);
+        ctx.fill();
+        
+        // Draw lightning bolt
+        const iconSize = size * 0.6;
+        const iconX = (size - iconSize) / 2;
+        const iconY = (size - iconSize) / 2;
+        drawLightningBolt(ctx, iconX, iconY, iconSize, '#FFFFFF');
+      }
+    }
+    
+    function roundRect(ctx, x, y, width, height, radius) {
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + width - radius, y);
+      ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+      ctx.lineTo(x + width, y + height - radius);
+      ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+      ctx.lineTo(x + radius, y + height);
+      ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+    }
+    
+    function drawLightningBolt(ctx, x, y, size, color) {
+      ctx.fillStyle = color;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = size * 0.05;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      
+      // Lightning bolt path (simplified)
+      ctx.beginPath();
+      ctx.moveTo(x + size * 0.55, y);
+      ctx.lineTo(x + size * 0.35, y + size * 0.45);
+      ctx.lineTo(x + size * 0.5, y + size * 0.45);
+      ctx.lineTo(x + size * 0.2, y + size);
+      ctx.lineTo(x + size * 0.45, y + size * 0.55);
+      ctx.lineTo(x + size * 0.3, y + size * 0.55);
+      ctx.closePath();
+      ctx.fill();
+    }
+    
+    function generateAllIcons() {
+      const container = document.getElementById('icons-container');
+      container.innerHTML = '';
+      
+      // Generate regular icons
+      sizes.forEach(size => {
+        const div = document.createElement('div');
+        div.className = 'icon-item';
+        
+        const canvas = document.createElement('canvas');
+        drawIcon(canvas, size, false);
+        
+        const label = document.createElement('div');
+        label.textContent = `${size}x${size}`;
+        label.style.marginTop = '10px';
+        label.style.fontWeight = 'bold';
+        
+        const downloadBtn = document.createElement('button');
+        downloadBtn.textContent = 'Download';
+        downloadBtn.style.fontSize = '12px';
+        downloadBtn.style.padding = '6px 12px';
+        downloadBtn.onclick = () => downloadCanvas(canvas, `icon-${size}x${size}.png`);
+        
+        div.appendChild(canvas);
+        div.appendChild(label);
+        div.appendChild(downloadBtn);
+        container.appendChild(div);
+      });
+      
+      // Generate maskable icons
+      [192, 512].forEach(size => {
+        const div = document.createElement('div');
+        div.className = 'icon-item';
+        
+        const canvas = document.createElement('canvas');
+        drawIcon(canvas, size, true);
+        
+        const label = document.createElement('div');
+        label.textContent = `${size}x${size} (Maskable)`;
+        label.style.marginTop = '10px';
+        label.style.fontWeight = 'bold';
+        label.style.color = '#20C997';
+        
+        const downloadBtn = document.createElement('button');
+        downloadBtn.textContent = 'Download';
+        downloadBtn.style.fontSize = '12px';
+        downloadBtn.style.padding = '6px 12px';
+        downloadBtn.onclick = () => downloadCanvas(canvas, `icon-maskable-${size}x${size}.png`);
+        
+        div.appendChild(canvas);
+        div.appendChild(label);
+        div.appendChild(downloadBtn);
+        container.appendChild(div);
+      });
+      
+      // Generate favicon
+      const faviconDiv = document.createElement('div');
+      faviconDiv.className = 'icon-item';
+      const faviconCanvas = document.createElement('canvas');
+      drawIcon(faviconCanvas, 32, false);
+      const faviconLabel = document.createElement('div');
+      faviconLabel.textContent = 'favicon.ico (32x32)';
+      faviconLabel.style.marginTop = '10px';
+      faviconLabel.style.fontWeight = 'bold';
+      const faviconBtn = document.createElement('button');
+      faviconBtn.textContent = 'Download';
+      faviconBtn.style.fontSize = '12px';
+      faviconBtn.style.padding = '6px 12px';
+      faviconBtn.onclick = () => downloadCanvas(faviconCanvas, 'favicon.ico');
+      faviconDiv.appendChild(faviconCanvas);
+      faviconDiv.appendChild(faviconLabel);
+      faviconDiv.appendChild(faviconBtn);
+      container.appendChild(faviconDiv);
+    }
+    
+    function downloadCanvas(canvas, filename) {
+      const link = document.createElement('a');
+      link.download = filename;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }
+    
+    function downloadAll() {
+      alert('Click "Download" button under each icon to save them individually. Place all icons in the /public folder of your Next.js app.');
+    }
+    
+    // Auto-generate on load
+    window.onload = generateAllIcons;
+  </script>
+</body>
+</html>

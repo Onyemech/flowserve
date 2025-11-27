@@ -1,0 +1,75 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+@import "tailwindcss";
+
+:root {
+  /* Landing Page Colors */
+  --landing-primary: #20C997;
+  --landing-bg-light: #F8F9FA;
+  --landing-bg-dark: #0A2540;
+  
+  /* Auth Pages Colors (Green Theme) */
+  --auth-green: #20C997;
+  --auth-bg-light: #f6f8f6;
+  --auth-bg-dark: #102216;
+  --auth-input-dark: #193322;
+  
+  /* Login Page Colors */
+  --login-primary: #20C997;
+  
+  /* Dashboard Colors */
+  --dash-primary: #4A90E2;
+  --dash-accent: #20C997;
+  --dash-bg-dark: #0F1419;
+  --dash-card-dark: #1A202C;
+  
+  /* Semantic Colors */
+  --success: #10b981;
+  --error: #ef4444;
+  --warning: #f59e0b;
+  --info: #3b82f6;
+}
+
+@theme inline {
+  --color-landing-primary: var(--landing-primary);
+  --color-auth-green: var(--auth-green);
+  --color-login-primary: var(--login-primary);
+  --color-dash-primary: var(--dash-primary);
+  --color-dash-accent: var(--dash-accent);
+  --color-dash-bg-dark: var(--dash-bg-dark);
+  --color-dash-card-dark: var(--dash-card-dark);
+  --color-success: var(--success);
+  --color-error: var(--error);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+  --font-display: "Inter", sans-serif;
+}
+
+html {
+  font-family: "Inter", sans-serif;
+}
+
+body {
+  min-height: max(884px, 100dvh);
+  font-family: "Inter", sans-serif;
+}
+
+/* Toast notification styles */
+.toast {
+  @apply rounded-lg shadow-lg px-4 py-3;
+}
+
+.toast-success {
+  @apply bg-success text-white;
+}
+
+.toast-error {
+  @apply bg-error text-white;
+}
+
+.toast-warning {
+  @apply bg-warning text-white;
+}
+
+.toast-info {
+  @apply bg-info text-white;
+}
