@@ -35,9 +35,15 @@ export default function DashboardPage() {
   const router = useRouter();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     fetchDashboardData();
+    fetchUnreadCount();
+    
+    // Poll for new notifications every 30 seconds
+    const interval = setInterval(fetchUnreadCount, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const fetchDashboardData = async () => {
@@ -53,6 +59,18 @@ export default function DashboardPage() {
       console.error('Failed to fetch dashboard data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchUnreadCount = async () => {
+    try {
+      const res = await fetch('/api/notifications/unread-count');
+      if (res.ok) {
+        const { count } = await res.json();
+        setUnreadCount(count);
+      }
+    } catch (error) {
+      console.error('Failed to fetch unread count:', error);
     }
   };
 
@@ -97,9 +115,9 @@ export default function DashboardPage() {
             className="relative p-3 bg-white/10 rounded-full hover:bg-white/20"
           >
             <Bell className="w-6 h-6" />
-            {data.metrics.totalLeads > 0 && (
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
-                {data.metrics.totalLeads}
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 px-1 flex items-center justify-center font-bold">
+                {unreadCount > 99 ? '99+' : unreadCount}
               </span>
             )}
           </button>

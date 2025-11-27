@@ -9,15 +9,20 @@ export function PWAInstaller() {
         navigator.serviceWorker
           .register('/sw.js')
           .then((registration) => {
-            console.log('SW registered:', registration)
+            console.log('SW registered')
+            
+            // Check for updates every 60 seconds
+            setInterval(() => {
+              registration.update()
+            }, 60000)
           })
           .catch((error) => {
-            console.log('SW registration failed:', error)
+            console.error('SW registration failed:', error)
           })
       })
     }
 
-    // Handle app updates
+    // Handle app updates - auto reload
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.ready.then((registration) => {
         registration.addEventListener('updatefound', () => {
@@ -25,10 +30,8 @@ export function PWAInstaller() {
           if (newWorker) {
             newWorker.addEventListener('statechange', () => {
               if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                // New version available
-                if (confirm('A new version of FlowServe AI is available. Reload to update?')) {
-                  window.location.reload()
-                }
+                // Auto reload for new version
+                window.location.reload()
               }
             })
           }
