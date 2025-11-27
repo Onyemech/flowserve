@@ -20,6 +20,9 @@ dist-ssr/
 .DS_Store
 *.pem
 
+
+.kiro
+.vscode
 # Debug
 npm-debug.log*
 yarn-debug.log*
