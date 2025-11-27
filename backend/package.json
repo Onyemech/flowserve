@@ -1,0 +1,22 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "This folder contains Supabase Edge Functions (Deno-based serverless functions).",
+  "main": "index.js",
+  "scripts": {
+    "supabase": "supabase",
+    "deploy": "supabase functions deploy",
+    "deploy:paystack": "supabase functions deploy paystack-webhook",
+    "deploy:whatsapp": "supabase functions deploy whatsapp-webhook-receiver",
+    "deploy:cleanup": "supabase functions deploy media-cleanup-cron",
+    "serve:paystack": "supabase functions serve paystack-webhook",
+    "serve:whatsapp": "supabase functions serve whatsapp-webhook-receiver",
+    "serve:cleanup": "supabase functions serve media-cleanup-cron"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "supabase": "^2.62.5"
+  }
+}

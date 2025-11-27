@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>FlowServe AI</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings:
+                'FILL' 0,
+                'wght' 400,
+                'GRAD' 0,
+                'opsz' 24
+        }
+    </style>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#20C997",
+                        "background-light": "#F8F9FA",
+                        "background-dark": "#0A2540",
+                        "text-light": "#0A2540",
+                        "text-dark": "#F8F9FA",
+                        "text-muted-light": "#6C757D",
+                        "text-muted-dark": "#adb5bd",
+                        "card-light": "#ffffff",
+                        "card-dark": "#103358",
+                        "border-light": "#dee2e6",
+                        "border-dark": "#1d4879",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "0.75rem",
+                        "xl": "1rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-display bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark">
+<div class="relative w-full overflow-x-hidden">
+<!-- Top App Bar -->
+<header class="sticky top-0 z-50 flex items-center justify-between p-4 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-sm border-b border-border-light dark:border-border-dark">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-3xl">hub</span>
+<h2 class="text-xl font-bold">FlowServe AI</h2>
+</div>
+<button class="flex cursor-pointer items-center justify-center rounded-full h-9 px-4 bg-primary text-background-dark text-sm font-bold">
+<span class="truncate">Sign Up</span>
+</button>
+</header>
+<main>
+<!-- Hero Section -->
+<section class="@container px-4 py-16 sm:py-24">
+<div class="flex min-h-[400px] flex-col gap-6 items-center justify-center text-center">
+<div class="flex flex-col gap-4">
+<h1 class="text-4xl font-black leading-tight tracking-tighter @[480px]:text-5xl">
+                            Automate Your Business on WhatsApp with AI
+                        </h1>
+<h2 class="text-base font-normal leading-normal text-text-muted-light dark:text-text-muted-dark max-w-xl mx-auto @[480px]:text-lg">
+                            Connect multiple businesses to WhatsApp for automated sales, support, and operations.
+                        </h2>
+</div>
+<button class="flex w-full max-w-xs cursor-pointer items-center justify-center overflow-hidden rounded-full h-12 px-5 bg-primary text-background-dark text-base font-bold shadow-lg shadow-primary/20">
+<span class="truncate">Get Started for Free</span>
+</button>
+</div>
+</section>
+<!-- Visual Element/Mockup -->
+<section class="px-4">
+<div class="w-full bg-center bg-no-repeat bg-cover aspect-[4/3] rounded-xl border border-border-light dark:border-border-dark" data-alt="A stylized mockup of the FlowServe AI application showing an automated WhatsApp chat on a smartphone screen" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuCbv2slM31Xp38tu2NfKQW9UPx6qzYhjBVxjYYrMogGYh6LDcc4I3-CChYNtc7NNRMIM4Gem3h8msEv2A7UYcVBQP2hMkIlkzdhfrJrWMR-CY-ljagR8xniEwJpnvW_3pfZ9O0XBcHzo5oln-ib_kNnUKIPmp2sbj4h-iNr1GbT1KzSkw39IgIqhm0-0-Pgw2w958iDDGf1XZXp7HYq90wEjzvMrjBrXVLFnREh303zYx_9qLne8crpHtNcevB32MG6valT9XEolBo"); background-position: center 20%;'></div>
+</section>
+<!-- Core Features Section -->
+<section class="flex flex-col gap-8 px-4 py-16 sm:py-24 @container">
+<div class="flex flex-col gap-2 text-center">
+<h3 class="text-3xl font-bold leading-tight tracking-tight">
+                        Everything You Need, All in One Place
+                    </h3>
+<p class="text-base font-normal leading-normal text-text-muted-light dark:text-text-muted-dark max-w-xl mx-auto">Streamline your business operations directly within WhatsApp.</p>
+</div>
+<div class="grid grid-cols-1 gap-4 @[480px]:grid-cols-2">
+<div class="flex flex-1 flex-col gap-3 rounded-xl border border-border-light dark:border-border-dark bg-card-light dark:bg-card-dark p-6">
+<span class="material-symbols-outlined text-primary text-3xl">store</span>
+<div class="flex flex-col gap-1">
+<h4 class="text-lg font-bold">Multi-Business Management</h4>
+<p class="text-sm font-normal text-text-muted-light dark:text-text-muted-dark">Centralize all your ventures in one place.</p>
+</div>
+</div>
+<div class="flex flex-1 flex-col gap-3 rounded-xl border border-border-light dark:border-border-dark bg-card-light dark:bg-card-dark p-6">
+<span class="material-symbols-outlined text-primary text-3xl">chat</span>
+<div class="flex flex-col gap-1">
+<h4 class="text-lg font-bold">WhatsApp Integration</h4>
+<p class="text-sm font-normal text-text-muted-light dark:text-text-muted-dark">Directly manage customer interactions seamlessly.</p>
+</div>
+</div>
+<div class="flex flex-1 flex-col gap-3 rounded-xl border border-border-light dark:border-border-dark bg-card-light dark:bg-card-dark p-6">
+<span class="material-symbols-outlined text-primary text-3xl">smart_toy</span>
+<div class="flex flex-col gap-1">
+<h4 class="text-lg font-bold">AI-Powered Assistant</h4>
+<p class="text-sm font-normal text-text-muted-light dark:text-text-muted-dark">Automate onboarding, listings, and orders.</p>
+</div>
+</div>
+<div class="flex flex-1 flex-col gap-3 rounded-xl border border-border-light dark:border-border-dark bg-card-light dark:bg-card-dark p-6">
+<span class="material-symbols-outlined text-primary text-3xl">credit_card</span>
+<div class="flex flex-col gap-1">
+<h4 class="text-lg font-bold">Effortless Payments</h4>
+<p class="text-sm font-normal text-text-muted-light dark:text-text-muted-dark">Support for Paystack, bank transfers, and more.</p>
+</div>
+</div>
+</div>
+</section>
+<!-- How It Works Section -->
+<section class="flex flex-col gap-8 px-4 py-16 sm:py-24 bg-background-light dark:bg-background-dark border-y border-border-light dark:border-border-dark">
+<div class="flex flex-col gap-2 text-center">
+<h3 class="text-3xl font-bold leading-tight tracking-tight">How It Works</h3>
+<p class="text-base font-normal leading-normal text-text-muted-light dark:text-text-muted-dark max-w-xl mx-auto">Get up and running in three simple steps.</p>
+</div>
+<div class="flex flex-col gap-8">
+<div class="flex items-start gap-4">
+<div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-primary/20 text-primary font-bold">1</div>
+<div class="flex flex-col gap-1">
+<h4 class="text-lg font-bold">Connect Your Account</h4>
+<p class="text-sm text-text-muted-light dark:text-text-muted-dark">Link your WhatsApp business number and payment gateways securely.</p>
+</div>
+</div>
+<div class="flex items-start gap-4">
+<div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-primary/20 text-primary font-bold">2</div>
+<div class="flex flex-col gap-1">
+<h4 class="text-lg font-bold">Configure Your AI</h4>
+<p class="text-sm text-text-muted-light dark:text-text-muted-dark">Set up your product listings, support responses, and automated workflows.</p>
+</div>
+</div>
+<div class="flex items-start gap-4">
+<div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-primary/20 text-primary font-bold">3</div>
+<div class="flex flex-col gap-1">
+<h4 class="text-lg font-bold">Automate &amp; Grow</h4>
+<p class="text-sm text-text-muted-light dark:text-text-muted-dark">Let FlowServe AI handle the routine tasks while you focus on your business.</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Social Proof/Testimonial -->
+<section class="px-4 py-16 sm:py-24 text-center">
+<figure class="max-w-xl mx-auto">
+<blockquote>
+<p class="text-xl font-medium">"FlowServe AI has revolutionized how we manage customer inquiries. It's like having an extra team member working 24/7."</p>
+</blockquote>
+<figcaption class="mt-4">
+<div class="font-bold">Amina Yusuf</div>
+<div class="text-sm text-text-muted-light dark:text-text-muted-dark">Founder, Real Estate Connect</div>
+</figcaption>
+</figure>
+</section>
+<!-- Final CTA -->
+<section class="px-4 py-16 sm:py-24 bg-card-light dark:bg-card-dark rounded-t-xl">
+<div class="flex flex-col gap-6 items-center justify-center text-center">
+<div class="flex flex-col gap-2">
+<h3 class="text-3xl font-bold leading-tight tracking-tight">Ready to Supercharge Your Business?</h3>
+<p class="text-base font-normal leading-normal text-text-muted-light dark:text-text-muted-dark max-w-xl mx-auto">
+                           Join hundreds of businesses automating their growth with FlowServe AI.
+                        </p>
+</div>
+<button class="flex w-full max-w-xs cursor-pointer items-center justify-center overflow-hidden rounded-full h-12 px-5 bg-primary text-background-dark text-base font-bold shadow-lg shadow-primary/20">
+<span class="truncate">Sign Up Now</span>
+</button>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="p-8 bg-card-light dark:bg-card-dark">
+<div class="flex flex-col items-center gap-4 text-center">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-2xl">hub</span>
+<h5 class="text-lg font-bold">FlowServe AI</h5>
+</div>
+<div class="flex gap-6 text-sm">
+<a class="text-text-muted-light dark:text-text-muted-dark hover:text-primary" href="#">Privacy Policy</a>
+<a class="text-text-muted-light dark:text-text-muted-dark hover:text-primary" href="#">Terms of Service</a>
+</div>
+<p class="text-xs text-text-muted-light dark:text-text-muted-dark">© 2024 FlowServe Inc. All rights reserved.</p>
+</div>
+</footer>
+</div>
+</body></html>

@@ -1,0 +1,163 @@
+META (WHATSAPP) API KEYS - HOW THEY'RE USED
+============================================
+
+CREDENTIALS NEEDED FROM META:
+-----------------------------
+1. WHATSAPP_TOKEN - Access token for sending messages
+2. WHATSAPP_PHONE_NUMBER_ID - Your business phone number ID
+3. WHATSAPP_WEBHOOK_VERIFY_TOKEN - Custom token you create for webhook verification
+
+WHERE TO GET THEM:
+-----------------
+Go to: https://developers.facebook.com/apps
+
+1. Create App > Business Type
+2. Add WhatsApp Product
+3. Go to WhatsApp > API Setup:
+   - WHATSAPP_TOKEN: "Temporary access token" (copy this)
+   - WHATSAPP_PHONE_NUMBER_ID: "Phone number ID" (copy this)
+   - WHATSAPP_WEBHOOK_VERIFY_TOKEN: Create your own (e.g., "flowserve_2024_secure")
+
+HOW THEY'RE USED IN THE SYSTEM:
+-------------------------------
+
+┌─────────────────────────────────────────────────────────────┐
+│                    INCOMING MESSAGE FLOW                     │
+└─────────────────────────────────────────────────────────────┘
+
+1. Customer sends WhatsApp message
+   ↓
+2. Meta forwards to YOUR webhook:
+   https://your-supabase.com/functions/v1/whatsapp-webhook-receiver
+   ↓
+3. Webhook verifies using WHATSAPP_WEBHOOK_VERIFY_TOKEN
+   (File: whatsapp-webhook-receiver/index.ts)
+   ↓
+4. Forwards to whatsapp-agent function
+   ↓
+5. Agent processes with AI (OpenAI)
+   ↓
+6. Agent sends response back to customer
+
+
+
+┌─────────────────────────────────────────────────────────────┐
+│                    OUTGOING MESSAGE FLOW                     │
+└─────────────────────────────────────────────────────────────┘
+
+1. Agent wants to send message
+   ↓
+2. Calls sendWhatsAppText() or sendWhatsAppImage()
+   (File: _shared/whatsapp-sender.ts)
+   ↓
+3. Makes API call to Meta:
+   
+   POST https://graph.facebook.com/v18.0/{WHATSAPP_PHONE_NUMBER_ID}/messages
+   
+   Headers:
+   - Authorization: Bearer {WHATSAPP_TOKEN}
+   - Content-Type: application/json
+   
+   Body:
+   {
+     "messaging_product": "whatsapp",
+     "to": "customer_phone_number",
+     "type": "text",
+     "text": { "body": "Your message here" }
+   }
+   ↓
+4. Meta delivers message to customer
+
+
+CONFIGURATION IN CODE:
+---------------------
+
+1. Config File (_shared/config.ts):
+   ```typescript
+   whatsapp: {
+     token: Deno.env.get('WHATSAPP_TOKEN'),
+     phoneNumberId: Deno.env.get('WHATSAPP_PHONE_NUMBER_ID'),
+     verifyToken: Deno.env.get('WHATSAPP_WEBHOOK_VERIFY_TOKEN'),
+   }
+   ```
+
+2. Sender File (_shared/whatsapp-sender.ts):
+   ```typescript
+   fetch(`https://graph.facebook.com/v18.0/${config.whatsapp.phoneNumberId}/messages`, {
+     headers: {
+       'Authorization': `Bearer ${config.whatsapp.token}`,
+     }
+   })
+   ```
+
+3. Agent File (whatsapp-agent/index.ts):
+   - Receives messages from Meta
+   - Processes with AI
+   - Calls sendWhatsAppText() to reply
+   - Calls sendWhatsAppImage() to send property/service images
+
+
+COMPLETE MESSAGE FLOW EXAMPLE:
+------------------------------
+
+Customer: "Show me properties"
+   ↓
+Meta → Your Webhook (verifies with WHATSAPP_WEBHOOK_VERIFY_TOKEN)
+   ↓
+Webhook → WhatsApp Agent
+   ↓
+Agent → OpenAI (analyzes intent)
+   ↓
+Agent → Database (fetches properties)
+   ↓
+Agent → sendWhatsAppImage() (sends property images)
+   Uses: WHATSAPP_TOKEN + WHATSAPP_PHONE_NUMBER_ID
+   ↓
+Meta → Customer (receives images)
+
+
+WEBHOOK VERIFICATION FLOW:
+--------------------------
+
+When you configure webhook in Meta dashboard:
+
+1. Meta sends GET request:
+   GET /whatsapp-webhook-receiver?hub.mode=subscribe&hub.verify_token=YOUR_TOKEN&hub.challenge=RANDOM
+
+2. Your webhook checks:
+   if (token === WHATSAPP_WEBHOOK_VERIFY_TOKEN) {
+     return challenge  // Success!
+   }
+
+3. Meta confirms webhook is valid
+
+
+SECURITY:
+--------
+- WHATSAPP_TOKEN: Never expose, only in server-side code
+- WHATSAPP_PHONE_NUMBER_ID: Can be public, just identifies your number
+- WHATSAPP_WEBHOOK_VERIFY_TOKEN: Secret, prevents unauthorized webhooks
+
+
+SET SECRETS IN SUPABASE:
+------------------------
+supabase secrets set WHATSAPP_TOKEN=EAAxxxx...
+supabase secrets set WHATSAPP_PHONE_NUMBER_ID=123456789
+supabase secrets set WHATSAPP_WEBHOOK_VERIFY_TOKEN=flowserve_2024_secure
+
+
+TESTING:
+-------
+1. Send test message to your WhatsApp business number
+2. Check Supabase logs: https://supabase.com/dashboard/project/YOUR_PROJECT/logs
+3. See incoming webhook, AI processing, outgoing message
+4. Customer receives response
+
+
+NO N8N NEEDED BECAUSE:
+---------------------
+- Meta API is REST-based (simple HTTP calls)
+- We handle webhooks directly in Edge Functions
+- AI processing happens in same function
+- Database queries are direct
+- Everything is serverless and scales automatically
