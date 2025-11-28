@@ -1,109 +1,154 @@
-# FlowServe AI - Backend
+# Backend - Supabase Edge Functions
 
-This folder contains Supabase Edge Functions (Deno-based serverless functions).
+This directory contains Supabase Edge Functions (Deno-based serverless functions) and database migrations.
 
 ## Structure
 
 ```
 backend/
-└── supabase/
-    └── functions/
-        ├── paystack-webhook/          # Handles Paystack payment webhooks
-        ├── whatsapp-webhook-receiver/ # Forwards WhatsApp messages to n8n
-        └── media-cleanup-cron/        # Scheduled cleanup of old media
+├── supabase/
+│   ├── functions/           # Edge Functions (Deno)
+│   │   ├── _shared/        # Shared utilities and services
+│   │   ├── whatsapp-webhook/      # Receives WhatsApp messages
+│   │   ├── whatsapp-agent/        # AI agent processing
+│   │   ├── paystack-webhook/      # Payment webhooks
+│   │   ├── send-payment-confirmation/  # Email confirmations
+│   │   └── media-cleanup-cron/    # Scheduled cleanup
+│   └── migrations/         # Database schema migrations
 ```
 
-## Supabase Edge Functions
+## Edge Functions Overview
 
-These are Deno-based serverless functions that run on Supabase infrastructure.
+### _shared/
+Contains reusable code shared across functions:
+- `config.ts` - Environment configuration
+- `ai-service.ts` - OpenAI integration
+- `whatsapp-sender.ts` - WhatsApp API client
+- `invoice-generator.ts` - PDF invoice generation
+- `email-sender.ts` - Email service
 
-### paystack-webhook
-- Receives Paystack payment notifications
-- Verifies webhook signature
+### whatsapp-webhook/
+- Receives incoming WhatsApp messages
+- Validates webhook signatures
+- Queues messages for processing
+
+### whatsapp-agent/
+- Processes WhatsApp messages with AI
+- Handles property inquiries, bookings, payments
+- Generates invoices and confirmations
+
+### paystack-webhook/
+- Receives payment notifications from Paystack
 - Updates order status
-- Initiates transfer to business owner
-- Soft-deletes properties when sold
+- Triggers confirmation emails
 
-### whatsapp-webhook-receiver
-- Receives WhatsApp Cloud API webhooks
-- Forwards messages to n8n for AI processing
-- Handles webhook verification
+### send-payment-confirmation/
+- Sends payment confirmation emails
+- Generates and attaches invoices
 
-### media-cleanup-cron
-- Scheduled function (runs daily)
-- Deletes images from Cloudinary for properties soft-deleted > 14 days
-- Updates storage usage tracking
+### media-cleanup-cron/
+- Scheduled function to clean up old media files
+- Runs daily to free up storage
 
-## Installation
+## Local Development
 
-Supabase CLI is installed as a dev dependency:
+### Prerequisites
+- Deno installed: https://deno.land/
+- Supabase CLI: `npm install -g supabase`
 
+### Setup
 ```bash
 cd backend
-npm install
+supabase start
+supabase functions serve
+```
+
+### Test Functions Locally
+```bash
+# Test whatsapp-webhook
+curl -X POST http://localhost:54321/functions/v1/whatsapp-webhook \
+  -H "Content-Type: application/json" \
+  -d '{"entry": [{"changes": [{"value": {"messages": [{"from": "1234567890", "text": {"body": "Hello"}}]}}]}]}'
 ```
 
 ## Deployment
 
-Deploy functions using npm scripts:
+See [DEPLOYMENT.md](../DEPLOYMENT.md) for full deployment instructions.
 
+Quick deploy:
 ```bash
-# Login to Supabase
-npm run supabase login
-
-# Link to your project
-npm run supabase link --project-ref your-project-ref
-
-# Deploy all functions
-npm run deploy
-
-# Deploy specific function
-npm run deploy:paystack
-npm run deploy:whatsapp
-npm run deploy:cleanup
+supabase functions deploy whatsapp-webhook
+supabase functions deploy whatsapp-agent
+supabase functions deploy paystack-webhook
 ```
 
 ## Environment Variables
 
-Set these in Supabase Dashboard → Edge Functions → Secrets:
+Required secrets for Edge Functions:
+- `SUPABASE_URL` - Your Supabase project URL
+- `SUPABASE_SERVICE_ROLE_KEY` - Service role key for admin access
+- `WHATSAPP_API_TOKEN` - Meta WhatsApp Business API token
+- `WHATSAPP_PHONE_NUMBER_ID` - Your WhatsApp phone number ID
+- `OPENAI_API_KEY` - OpenAI API key for AI agent
+- `PAYSTACK_SECRET_KEY` - Paystack secret key for payments
 
-- `SUPABASE_URL`
-- `SUPABASE_SERVICE_ROLE_KEY`
-- `PAYSTACK_SECRET_KEY`
-- `WHATSAPP_WEBHOOK_VERIFY_TOKEN`
-- `N8N_WEBHOOK_URL`
-- `CLOUDINARY_CLOUD_NAME`
-- `CLOUDINARY_API_KEY`
-- `CLOUDINARY_API_SECRET`
-
-## Local Development
-
+Set secrets:
 ```bash
-# Serve functions locally
-npm run serve:paystack
-npm run serve:whatsapp
-npm run serve:cleanup
+supabase secrets set KEY=value
 ```
 
-## Next.js API Routes
+## Deno vs Node.js
 
-Next.js API routes are located in `frontend/src/app/api/` and handle:
-- Payment link generation
-- Manual payment confirmation
-- File uploads to Cloudinary
-- User profile updates
-- Other frontend-to-backend operations
+Edge Functions use Deno, not Node.js:
+- Use `import` instead of `require`
+- Use Deno standard library: `https://deno.land/std`
+- Use npm packages via CDN: `npm:package-name`
+- No `package.json` needed
 
-## Architecture
-
+Example import:
+```typescript
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import Stripe from "npm:stripe@^12.0.0"
 ```
-Frontend (Next.js)
-    ↓
-Next.js API Routes (/api/*)
-    ↓
-Supabase (Database + Auth)
-    ↓
-Supabase Edge Functions (Webhooks)
-    ↓
-External Services (Paystack, WhatsApp, n8n)
+
+## Debugging
+
+### View Logs
+```bash
+supabase functions logs whatsapp-webhook --tail
+```
+
+### Common Issues
+
+**Import errors**: Make sure to use full URLs for imports
+```typescript
+// ❌ Wrong
+import { config } from '../_shared/config'
+
+// ✅ Correct
+import { config } from '../_shared/config.ts'
+```
+
+**CORS errors**: Add CORS headers to responses
+```typescript
+return new Response(JSON.stringify(data), {
+  headers: {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': '*',
+  },
+})
+```
+
+**Timeout errors**: Edge Functions have 150s timeout limit
+
+## Testing
+
+Test individual functions:
+```bash
+# Unit test
+deno test supabase/functions/whatsapp-agent/index.test.ts
+
+# Integration test with local Supabase
+supabase functions serve
+curl http://localhost:54321/functions/v1/whatsapp-webhook
 ```

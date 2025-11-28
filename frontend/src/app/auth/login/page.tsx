@@ -30,16 +30,18 @@ export default function LoginPage() {
     setIsLoading(true)
     try {
       const supabase = createClient()
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: formData.email,
         password: formData.password,
       })
       if (error) throw error
+      if (!data.session) throw new Error('No session created')
+      
       showToast('success', 'Login successful!')
-      router.push('/dashboard')
+      // Force full page reload to ensure session is properly set
+      window.location.href = '/dashboard'
     } catch (error: any) {
       showToast('error', error.message || 'Login failed')
-    } finally {
       setIsLoading(false)
     }
   }
@@ -48,11 +50,15 @@ export default function LoginPage() {
     setIsLoading(true)
     try {
       const supabase = createClient()
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: `${window.location.origin}/auth/callback` },
+        options: { 
+          redirectTo: `${window.location.origin}/auth/callback`,
+          skipBrowserRedirect: false,
+        },
       })
       if (error) throw error
+      // OAuth will redirect automatically, no need to handle here
     } catch (error: any) {
       showToast('error', error.message || 'Google sign-in failed')
       setIsLoading(false)

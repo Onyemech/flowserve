@@ -1,21 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#4A90E2;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#20C997;stop-opacity:1" />
+    <linearGradient id="gradMask512" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#23d980;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#135c51;stop-opacity:1" />
     </linearGradient>
   </defs>
   
-  <!-- Background with rounded corners -->
-  <rect width="512" height="512" rx="102.4" fill="url(#grad)"/>
+  <!-- Background with safe area padding -->
+  <rect width="512" height="512" rx="102.4" fill="url(#gradMask512)"/>
   
-  <!-- Lightning bolt icon -->
-  <g transform="translate(133.12, 112.64)">
-    <path d="M 143.35999999999999 0 L 61.44 184.32000000000002 L 122.88 184.32000000000002 L 0 348.16 L 102.4 225.28000000000003 L 40.96000000000001 225.28000000000003 Z" 
+  <!-- FS text centered with safe area -->
+  <g transform="translate(256, 256)">
+    <text x="0" y="0" 
+          font-family="Inter, Arial, sans-serif" 
+          font-size="179.2" 
+          font-weight="bold" 
           fill="white" 
-          stroke="white" 
-          stroke-width="8.192" 
-          stroke-linejoin="round"/>
+          text-anchor="middle" 
+          dominant-baseline="central">FS</text>
   </g>
 </svg>

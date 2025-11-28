@@ -69,7 +69,8 @@ export default function RegisterPage() {
       }
       
       showToast('success', 'Registration successful! Redirecting to setup...')
-      router.push('/dashboard/setup')
+      // Force full page reload to ensure session is properly set
+      window.location.href = '/dashboard/setup'
     } catch (error: any) {
       showToast('error', error.message || 'Registration failed')
     } finally {
@@ -81,11 +82,15 @@ export default function RegisterPage() {
     setIsLoading(true)
     try {
       const supabase = createClient()
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: `${window.location.origin}/auth/callback` },
+        options: { 
+          redirectTo: `${window.location.origin}/auth/callback`,
+          skipBrowserRedirect: false,
+        },
       })
       if (error) throw error
+      // OAuth will redirect automatically, no need to handle here
     } catch (error: any) {
       showToast('error', error.message || 'Google sign-in failed')
       setIsLoading(false)

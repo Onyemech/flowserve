@@ -1,21 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg width="72" height="72" viewBox="0 0 72 72" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#4A90E2;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#20C997;stop-opacity:1" />
+    <linearGradient id="grad72" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#23d980;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#135c51;stop-opacity:1" />
     </linearGradient>
   </defs>
   
-  <!-- Background with rounded corners -->
-  <rect width="72" height="72" rx="14.4" fill="url(#grad)"/>
+  <!-- Background -->
+  <rect width="72" height="72" rx="14.4" fill="url(#grad72)"/>
   
-  <!-- Lightning bolt icon -->
-  <g transform="translate(14.4, 10.799999999999999)">
-    <path d="M 25.2 0 L 10.799999999999999 32.4 L 21.599999999999998 32.4 L 0 61.199999999999996 L 18 39.6 L 7.2 39.6 Z" 
+  <!-- FS text centered -->
+  <g transform="translate(36, 36)">
+    <text x="0" y="0" 
+          font-family="Inter, Arial, sans-serif" 
+          font-size="28.8" 
+          font-weight="bold" 
           fill="white" 
-          stroke="white" 
-          stroke-width="1.44" 
-          stroke-linejoin="round"/>
+          text-anchor="middle" 
+          dominant-baseline="central">FS</text>
   </g>
 </svg>

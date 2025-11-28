@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, Bell, Package, User, BarChart3 } from 'lucide-react';
+import { Home, Bell, Package, User, BarChart3, Settings } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 interface NavItem {
@@ -58,9 +58,9 @@ export default function BottomNav() {
       badge: unreadCount,
     },
     {
-      icon: <User className="w-6 h-6" />,
-      label: 'Profile',
-      path: '/dashboard/profile',
+      icon: <Settings className="w-6 h-6" />,
+      label: 'Settings',
+      path: '/dashboard/settings',
     },
   ];
 
