@@ -121,8 +121,8 @@ export default function DashboardPage() {
       <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 rounded-b-3xl shadow-lg">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold">{data.user.businessName}</h1>
-            <p className="text-blue-100 text-sm mt-1">Welcome back, {data.user.fullName}</p>
+            <h1 className="text-2xl font-bold">{data.user?.businessName || 'My Business'}</h1>
+            <p className="text-blue-100 text-sm mt-1">Welcome back, {data.user?.fullName || 'User'}</p>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -259,7 +259,7 @@ export default function DashboardPage() {
         {/* Recent Activity */}
         <div className="bg-white rounded-2xl shadow-sm p-4">
           <h2 className="font-bold text-gray-900 mb-3">Recent Activity</h2>
-          {data.recentActivity.length === 0 ? (
+          {!data.recentActivity || data.recentActivity.length === 0 ? (
             <p className="text-gray-500 text-sm text-center py-4">No recent activity</p>
           ) : (
             <div className="space-y-3">

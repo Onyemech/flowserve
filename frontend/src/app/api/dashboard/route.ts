@@ -51,9 +51,10 @@ export async function GET(request: Request) {
         activeCustomers: uniqueCustomers,
         pendingOrders,
       },
+      recentActivity: [],
       user: {
-        fullName: profile?.full_name,
-        businessName: profile?.business_name,
+        fullName: profile?.full_name || 'User',
+        businessName: profile?.business_name || 'My Business',
       },
     });
   } catch (error: any) {
