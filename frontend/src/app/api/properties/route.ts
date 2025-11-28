@@ -1,43 +1,59 @@
-import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const supabase = await createClient();
     
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { data: properties, error } = await supabase
+    const { searchParams } = new URL(request.url);
+    const status = searchParams.get('status');
+
+    let query = supabase
       .from('properties')
       .select('*')
       .eq('user_id', user.id)
       .is('deleted_at', null)
-      .order('created_at', { ascending: false })
+      .order('created_at', { ascending: false });
 
-    if (error) throw error
+    if (status && status !== 'all') {
+      query = query.eq('status', status);
+    }
 
-    return NextResponse.json({ properties: properties || [] })
+    const { data, error } = await query;
+
+    if (error) throw error;
+
+    return NextResponse.json({ properties: data });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const supabase = await createClient();
     
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await request.json()
-    const { title, price, description, location, images } = body
+    const body = await request.json();
+    const { title, price, description, location, images, bedrooms, bathrooms, square_feet, property_type } = body;
 
-    const { data: property, error } = await supabase
+    if (!title || !price) {
+      return NextResponse.json(
+        { error: 'Title and price are required' },
+        { status: 400 }
+      );
+    }
+
+    const { data, error } = await supabase
       .from('properties')
       .insert({
         user_id: user.id,
@@ -46,15 +62,19 @@ export async function POST(request: Request) {
         description,
         location,
         images: images || [],
-        status: 'available'
+        bedrooms,
+        bathrooms,
+        square_feet,
+        property_type,
+        status: 'available',
       })
       .select()
-      .single()
+      .single();
 
-    if (error) throw error
+    if (error) throw error;
 
-    return NextResponse.json({ property })
+    return NextResponse.json({ property: data }, { status: 201 });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

@@ -42,19 +42,19 @@ export default function BottomNav() {
       path: '/dashboard',
     },
     {
-      icon: <BarChart3 className="w-6 h-6" />,
-      label: 'Analytics',
-      path: '/dashboard/analytics',
-    },
-    {
       icon: <Package className="w-6 h-6" />,
-      label: 'Inventory',
-      path: '/dashboard/inventory',
+      label: 'Orders',
+      path: '/dashboard/orders',
     },
     {
       icon: <User className="w-6 h-6" />,
-      label: 'Profile',
-      path: '/dashboard/profile',
+      label: 'Customers',
+      path: '/dashboard/customers',
+    },
+    {
+      icon: <Settings className="w-6 h-6" />,
+      label: 'Settings',
+      path: '/dashboard/settings',
     },
   ];
 

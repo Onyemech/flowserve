@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import BottomNav from '@/components/dashboard/BottomNav';
+import { createClient } from '@/lib/supabase/client';
 import { 
   TrendingUp, 
   Users, 
@@ -11,7 +12,9 @@ import {
   Bell,
   Plus,
   Home as HomeIcon,
-  Calendar
+  Calendar,
+  UserCircle,
+  LogOut
 } from 'lucide-react';
 
 interface DashboardData {
@@ -33,9 +36,11 @@ interface DashboardData {
 
 export default function DashboardPage() {
   const router = useRouter();
+  const supabase = createClient();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [showUserMenu, setShowUserMenu] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
@@ -71,6 +76,15 @@ export default function DashboardPage() {
       }
     } catch (error) {
       console.error('Failed to fetch unread count:', error);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      router.push('/auth/login');
+    } catch (error) {
+      console.error('Logout error:', error);
     }
   };
 
@@ -110,17 +124,54 @@ export default function DashboardPage() {
             <h1 className="text-2xl font-bold">{data.user.businessName}</h1>
             <p className="text-blue-100 text-sm mt-1">Welcome back, {data.user.fullName}</p>
           </div>
-          <button
-            onClick={() => router.push('/dashboard/notifications')}
-            className="relative p-3 bg-white/10 rounded-full hover:bg-white/20"
-          >
-            <Bell className="w-6 h-6" />
-            {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 px-1 flex items-center justify-center font-bold">
-                {unreadCount > 99 ? '99+' : unreadCount}
-              </span>
-            )}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => router.push('/dashboard/notifications')}
+              className="relative p-3 bg-white/10 rounded-full hover:bg-white/20 transition-colors"
+            >
+              <Bell className="w-6 h-6" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 px-1 flex items-center justify-center font-bold">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
+            </button>
+            <div className="relative">
+              <button
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                className="p-3 bg-white/10 rounded-full hover:bg-white/20 transition-colors"
+              >
+                <UserCircle className="w-6 h-6" />
+              </button>
+              {showUserMenu && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-40" 
+                    onClick={() => setShowUserMenu(false)}
+                  />
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2 z-50">
+                    <button
+                      onClick={() => {
+                        setShowUserMenu(false);
+                        router.push('/dashboard/settings');
+                      }}
+                      className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                    >
+                      <UserCircle className="w-4 h-4" />
+                      Settings
+                    </button>
+                    <button
+                      onClick={handleLogout}
+                      className="w-full px-4 py-2 text-left text-red-600 hover:bg-red-50 flex items-center gap-2"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Logout
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Quick Stats */}

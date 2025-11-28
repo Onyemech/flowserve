@@ -5,7 +5,7 @@ export interface AIProvider {
 }
 
 export interface IntentResult {
-  action: 'show_listings' | 'select_item' | 'choose_payment' | 'unknown'
+  action: 'show_listings' | 'select_item' | 'provide_date' | 'choose_payment' | 'unknown'
   confidence: number
   filters?: {
     maxPrice?: number
@@ -14,6 +14,10 @@ export interface IntentResult {
   }
   itemReference?: string
   paymentMethod?: 'paystack' | 'manual'
+  eventDate?: string // ISO date string
+  eventTime?: string
+  guestCount?: number
+  eventLocation?: string
 }
 
 // OpenAI Implementation
@@ -33,18 +37,25 @@ Analyze the customer's message and determine their intent.
 Available actions:
 - show_listings: Customer wants to see available ${context.businessType === 'real_estate' ? 'properties' : 'services'}
 - select_item: Customer is selecting a specific item (by number or name)
+- provide_date: Customer is providing event date/time (for event planning)
 - choose_payment: Customer is choosing a payment method
 - unknown: Intent is unclear
 
 Extract any filters mentioned (price, bedrooms, location).
 If customer mentions a number or item name, extract it as itemReference.
+If customer mentions a date, extract it as eventDate in ISO format (YYYY-MM-DD).
+If customer mentions time, extract as eventTime (HH:MM).
+If customer mentions guest count, extract as guestCount.
 
 Respond ONLY with valid JSON in this format:
 {
   "action": "show_listings",
   "confidence": 0.95,
-  "filters": { "maxPrice": 5000000, "bedrooms": "3" },
-  "itemReference": "1"
+  "filters": { "maxPrice": 5000000 },
+  "itemReference": "1",
+  "eventDate": "2025-12-25",
+  "eventTime": "14:00",
+  "guestCount": 100
 }
 
 Context: ${JSON.stringify(context.sessionContext || {})}`

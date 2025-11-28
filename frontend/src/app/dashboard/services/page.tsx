@@ -1,372 +1,174 @@
 'use client'
-
-import { useState, useEffect } from 'react'
-import { Button } from '@/components/ui/Button'
-import { useToast } from '@/components/ui/Toast'
-import { Modal } from '@/components/ui/Modal'
-import { Input } from '@/components/ui/Input'
-import { Card } from '@/components/ui/Card'
-import { formatNaira } from '@/lib/utils/currency'
-import { createClient } from '@/lib/supabase/client'
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { Plus, Sparkles, Edit, Trash2, Image as ImageIcon } from 'lucide-react'
+import BottomNav from '@/components/dashboard/BottomNav'
 
 interface Service {
   id: string
   name: string
   price: number
   description: string
+  category: string
   images: string[]
+  status: string
   created_at: string
 }
 
 export default function ServicesPage() {
-  const { showToast } = useToast()
+  const router = useRouter()
   const [services, setServices] = useState<Service[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [editingService, setEditingService] = useState<Service | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isUploading, setIsUploading] = useState(false)
-  const [formData, setFormData] = useState({
-    name: '',
-    price: '',
-    description: '',
-    images: [] as string[],
-  })
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    loadServices()
+    fetchServices()
   }, [])
 
-  const loadServices = async () => {
+  const fetchServices = async () => {
     try {
-      const supabase = createClient()
-      const { data, error } = await supabase
-        .from('services')
-        .select('*')
-        .order('created_at', { ascending: false })
-
-      if (error) throw error
-      setServices(data || [])
-    } catch (error: any) {
-      showToast('error', error.message)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files
-    if (!files || files.length === 0) return
-
-    setIsUploading(true)
-
-    try {
-      const uploadedUrls: string[] = []
-
-      for (const file of Array.from(files)) {
-        const formData = new FormData()
-        formData.append('file', file)
-
-        const response = await fetch('/api/media/upload', {
-          method: 'POST',
-          body: formData,
-        })
-
-        const data = await response.json()
-        if (!response.ok) throw new Error(data.error)
-
-        uploadedUrls.push(data.url)
+      const res = await fetch('/api/services')
+      if (res.ok) {
+        const data = await res.json()
+        setServices(data.services || [])
       }
-
-      setFormData(prev => ({
-        ...prev,
-        images: [...prev.images, ...uploadedUrls]
-      }))
-
-      showToast('success', `${uploadedUrls.length} image(s) uploaded`)
-    } catch (error: any) {
-      showToast('error', error.message)
+    } catch (error) {
+      console.error('Failed to fetch services:', error)
     } finally {
-      setIsUploading(false)
+      setLoading(false)
     }
   }
 
-  const removeImage = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      images: prev.images.filter((_, i) => i !== index)
-    }))
-  }
-
-  const openModal = (service?: Service) => {
-    if (service) {
-      setEditingService(service)
-      setFormData({
-        name: service.name,
-        price: service.price.toString(),
-        description: service.description || '',
-        images: service.images || [],
-      })
-    } else {
-      setEditingService(null)
-      setFormData({
-        name: '',
-        price: '',
-        description: '',
-        images: [],
-      })
-    }
-    setIsModalOpen(true)
-  }
-
-  const closeModal = () => {
-    setIsModalOpen(false)
-    setEditingService(null)
-    setFormData({
-      name: '',
-      price: '',
-      description: '',
-      images: [],
-    })
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (!formData.name || !formData.price) {
-      showToast('error', 'Name and price are required')
-      return
-    }
-
-    setIsSubmitting(true)
-
-    try {
-      const supabase = createClient()
-      const serviceData = {
-        name: formData.name,
-        price: parseFloat(formData.price),
-        description: formData.description,
-        images: formData.images,
-      }
-
-      if (editingService) {
-        const { error } = await supabase
-          .from('services')
-          .update(serviceData)
-          .eq('id', editingService.id)
-
-        if (error) throw error
-        showToast('success', 'Service updated successfully')
-      } else {
-        const { error } = await supabase
-          .from('services')
-          .insert(serviceData)
-
-        if (error) throw error
-        showToast('success', 'Service added successfully')
-      }
-
-      closeModal()
-      loadServices()
-    } catch (error: any) {
-      showToast('error', error.message)
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  const handleDelete = async (id: string) => {
+  const deleteService = async (id: string) => {
     if (!confirm('Are you sure you want to delete this service?')) return
 
     try {
-      const supabase = createClient()
-      const { error } = await supabase
-        .from('services')
-        .delete()
-        .eq('id', id)
-
-      if (error) throw error
-      showToast('success', 'Service deleted successfully')
-      loadServices()
-    } catch (error: any) {
-      showToast('error', error.message)
+      const res = await fetch(`/api/services/${id}`, { method: 'DELETE' })
+      if (res.ok) {
+        setServices(prev => prev.filter(s => s.id !== id))
+      }
+    } catch (error) {
+      console.error('Failed to delete service:', error)
     }
   }
 
-  const calculatePaystackFee = (amount: number) => {
-    return (amount * 0.015) + 100
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center pb-20">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+      </div>
+    )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Services & Pricing</h1>
-            <p className="text-gray-600 mt-1">Manage your event planning services</p>
+    <div className="min-h-screen bg-gray-50 pb-20">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-purple-600 to-purple-700 text-white p-6 rounded-b-3xl shadow-lg">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <Sparkles className="w-8 h-8" />
+            <div>
+              <h1 className="text-2xl font-bold">Services</h1>
+              <p className="text-purple-100 text-sm">{services.length} total</p>
+            </div>
           </div>
-          <Button onClick={() => openModal()} variant="primary">
-            Add Service
-          </Button>
+          <button
+            onClick={() => router.push('/dashboard/services/new')}
+            className="p-3 bg-white/20 hover:bg-white/30 rounded-full transition-colors"
+          >
+            <Plus className="w-6 h-6" />
+          </button>
         </div>
+      </div>
 
-        {isLoading ? (
+      {/* Services List */}
+      <div className="p-4 space-y-4">
+        {services.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-gray-600">Loading services...</p>
+            <Sparkles className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">No services yet</h3>
+            <p className="text-gray-500 mb-6">Add your first service to get started</p>
+            <button
+              onClick={() => router.push('/dashboard/services/new')}
+              className="px-6 py-3 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700"
+            >
+              Add Service
+            </button>
           </div>
-        ) : services.length === 0 ? (
-          <Card className="text-center py-12">
-            <p className="text-gray-600 mb-4">No services yet</p>
-            <Button onClick={() => openModal()} variant="primary">
-              Add Your First Service
-            </Button>
-          </Card>
         ) : (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {services.map((service) => (
-              <Card key={service.id} className="overflow-hidden">
-                {service.images && service.images.length > 0 && (
+          services.map((service) => (
+            <div key={service.id} className="bg-white rounded-2xl shadow-sm overflow-hidden">
+              {/* Service Image */}
+              {service.images && service.images.length > 0 ? (
+                <div className="relative h-48 bg-gray-200">
                   <img
                     src={service.images[0]}
                     alt={service.name}
-                    className="w-full h-48 object-cover"
+                    className="w-full h-full object-cover"
                   />
-                )}
-                <div className="p-4">
-                  <h3 className="text-xl font-semibold text-foreground mb-2">
-                    {service.name}
-                  </h3>
-                  <p className="text-2xl font-bold text-primary mb-2">
-                    {formatNaira(service.price)}
-                  </p>
-                  {service.description && (
-                    <p className="text-sm text-gray-600 mb-4 line-clamp-3">
-                      {service.description}
-                    </p>
+                  {service.images.length > 1 && (
+                    <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/60 text-white text-xs rounded-full flex items-center gap-1">
+                      <ImageIcon className="w-3 h-3" />
+                      {service.images.length}
+                    </div>
                   )}
-                  <p className="text-xs text-gray-500 mb-4">
-                    Paystack fee: {formatNaira(calculatePaystackFee(service.price))}
-                  </p>
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={() => openModal(service)}
-                      variant="outline"
-                      size="sm"
-                      className="flex-1"
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      onClick={() => handleDelete(service.id)}
-                      variant="danger"
-                      size="sm"
-                      className="flex-1"
-                    >
-                      Delete
-                    </Button>
-                  </div>
                 </div>
-              </Card>
-            ))}
-          </div>
-        )}
+              ) : (
+                <div className="h-48 bg-gradient-to-br from-purple-100 to-purple-200 flex items-center justify-center">
+                  <Sparkles className="w-12 h-12 text-purple-400" />
+                </div>
+              )}
 
-        <Modal
-          isOpen={isModalOpen}
-          onClose={closeModal}
-          title={editingService ? 'Edit Service' : 'Add Service'}
-          size="lg"
-        >
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <Input
-              label="Service Name"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="Wedding Decoration"
-              required
-            />
-
-            <Input
-              label="Price (₦)"
-              type="number"
-              value={formData.price}
-              onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-              placeholder="150000"
-              required
-            />
-
-            {formData.price && (
-              <p className="text-sm text-gray-600">
-                Paystack fee: {formatNaira(calculatePaystackFee(parseFloat(formData.price)))}
-              </p>
-            )}
-
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">
-                Description
-              </label>
-              <textarea
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                rows={4}
-                placeholder="Service details..."
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">
-                Sample Images
-              </label>
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={handleImageUpload}
-                disabled={isUploading}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              />
-              {isUploading && <p className="text-sm text-gray-600 mt-1">Uploading...</p>}
-            </div>
-
-            {formData.images.length > 0 && (
-              <div className="grid grid-cols-3 gap-2">
-                {formData.images.map((url, index) => (
-                  <div key={index} className="relative">
-                    <img src={url} alt="" className="w-full h-24 object-cover rounded" />
-                    <button
-                      type="button"
-                      onClick={() => removeImage(index)}
-                      className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center"
-                    >
-                      ×
-                    </button>
+              {/* Service Details */}
+              <div className="p-4">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex-1">
+                    <h3 className="text-lg font-bold text-gray-900">{service.name}</h3>
+                    {service.category && (
+                      <p className="text-sm text-gray-500 capitalize">{service.category}</p>
+                    )}
                   </div>
-                ))}
-              </div>
-            )}
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                    service.status === 'active' 
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-gray-100 text-gray-700'
+                  }`}>
+                    {service.status}
+                  </span>
+                </div>
 
-            <div className="flex gap-2 pt-4">
-              <Button
-                type="button"
-                onClick={closeModal}
-                variant="outline"
-                className="flex-1"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                variant="primary"
-                className="flex-1"
-                isLoading={isSubmitting}
-              >
-                {editingService ? 'Update' : 'Add'} Service
-              </Button>
+                <p className="text-2xl font-bold text-purple-600 mb-3">
+                  ₦{service.price.toLocaleString()}
+                </p>
+
+                {service.description && (
+                  <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+                    {service.description}
+                  </p>
+                )}
+
+                {/* Actions */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => router.push(`/dashboard/services/${service.id}/edit`)}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-purple-50 text-purple-600 rounded-lg font-medium hover:bg-purple-100"
+                  >
+                    <Edit className="w-4 h-4" />
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => deleteService(service.id)}
+                    className="flex items-center justify-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-lg font-medium hover:bg-red-100"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
             </div>
-          </form>
-        </Modal>
+          ))
+        )}
       </div>
+
+      <BottomNav />
     </div>
   )
 }

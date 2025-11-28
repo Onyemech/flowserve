@@ -172,6 +172,10 @@ async function processMessage(supabase: any, message: WhatsAppMessage, session: 
     return await handleItemSelection(supabase, owner, intent, sessionData)
   }
   
+  if (intent.action === 'provide_date') {
+    return await handleDateSelection(supabase, owner, intent, sessionData)
+  }
+  
   if (intent.action === 'choose_payment') {
     return await handlePaymentChoice(supabase, owner, intent, sessionData)
   }
@@ -270,6 +274,23 @@ async function handleItemSelection(supabase: any, owner: any, intent: any, sessi
   
   const itemName = selectedItem.title || selectedItem.name
   
+  // For event planning, ask for date first
+  if (owner.business_type === 'event_planning') {
+    return {
+      text: `Great choice! You selected:\n\n${itemName}\n₦${selectedItem.price.toLocaleString()}\n\n📅 When is your event?\n\nPlease provide the date (e.g., "December 25, 2025" or "25/12/2025")`,
+      media: [],
+      sessionData: {
+        ...sessionData,
+        context: {
+          ...sessionData.context,
+          selectedItem,
+          awaitingDate: true,
+        },
+      },
+    }
+  }
+  
+  // For real estate, go straight to payment
   return {
     text: `Great choice! You selected:\n\n${itemName}\n₦${selectedItem.price.toLocaleString()}\n\nTo proceed, please choose a payment option:\n\n1️⃣ Paystack (Instant confirmation)\n2️⃣ Manual Payment (5 minutes - 14 hours)\n\nReply with 1 or 2`,
     media: [],
@@ -284,33 +305,184 @@ async function handleItemSelection(supabase: any, owner: any, intent: any, sessi
   }
 }
 
-async function handlePaymentChoice(supabase: any, owner: any, intent: any, sessionData: any) {
+async function handleDateSelection(supabase: any, owner: any, intent: any, sessionData: any) {
   const selectedItem = sessionData.context.selectedItem
   
   if (!selectedItem) {
     return {
-      text: 'Please first select an item you want to purchase.',
+      text: 'Please first select a service.',
       media: [],
       sessionData,
     }
   }
   
-  const paymentMethod = intent.paymentMethod || (intent.itemReference === '1' ? 'paystack' : 'manual')
+  if (!intent.eventDate) {
+    return {
+      text: 'I couldn\'t understand the date. Please provide it in a clear format like:\n\n"December 25, 2025"\n"25/12/2025"\n"2025-12-25"',
+      media: [],
+      sessionData,
+    }
+  }
   
-  if (paymentMethod === 'paystack') {
-    const { data: order } = await supabase
+  // Check if date is in the future
+  const eventDate = new Date(intent.eventDate)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  
+  if (eventDate < today) {
+    return {
+      text: 'The date you provided is in the past. Please provide a future date for your event.',
+      media: [],
+      sessionData,
+    }
+  }
+  
+  // Check if date is already booked
+  const { data: existingBookings } = await supabase
+    .from('orders')
+    .select('id, status')
+    .eq('user_id', owner.id)
+    .eq('item_type', 'service')
+    .eq('event_date', intent.eventDate)
+    .in('status', ['pending', 'confirmed', 'processing'])
+  
+  if (existingBookings && existingBookings.length > 0) {
+    return {
+      text: `❌ Sorry, ${eventDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} is already booked.\n\nPlease choose another date for your event.`,
+      media: [],
+      sessionData,
+    }
+  }
+  
+  // Date is available
+  const itemName = selectedItem.title || selectedItem.name
+  const formattedDate = eventDate.toLocaleDateString('en-US', { 
+    weekday: 'long',
+    month: 'long', 
+    day: 'numeric', 
+    year: 'numeric' 
+  })
+  
+  return {
+    text: `✅ Great! ${formattedDate} is available!\n\n${itemName}\n₦${selectedItem.price.toLocaleString()}\n\nTo proceed, please choose a payment option:\n\n1️⃣ Paystack (Instant confirmation)\n2️⃣ Manual Payment (5 minutes - 14 hours)\n\nReply with 1 or 2`,
+    media: [],
+    sessionData: {
+      ...sessionData,
+      context: {
+        ...sessionData.context,
+        selectedItem,
+        eventDate: intent.eventDate,
+        eventTime: intent.eventTime,
+        guestCount: intent.guestCount,
+        eventLocation: intent.eventLocation,
+        awaitingDate: false,
+        awaitingPayment: true,
+      },
+    },
+  }
+}
+
+async function handlePaymentChoice(supabase: any, owner: any, intent: any, sessionData: any) {
+  try {
+    console.log('=== PAYMENT CHOICE HANDLER STARTED ===')
+    
+    const selectedItem = sessionData.context.selectedItem
+    
+    if (!selectedItem) {
+      console.log('❌ No selected item')
+      return {
+        text: 'Please first select an item you want to purchase.',
+        media: [],
+        sessionData,
+      }
+    }
+    
+    console.log('✅ Selected item:', selectedItem.title || selectedItem.name)
+    
+    const paymentMethod = intent.paymentMethod || (intent.itemReference === '1' ? 'paystack' : 'manual')
+    const itemType = owner.business_type === 'real_estate' ? 'property' : 'service'
+    const itemName = selectedItem.title || selectedItem.name
+    
+    console.log('Payment method:', paymentMethod, 'Item type:', itemType)
+    
+    // Get or create customer
+    console.log('Fetching customer for phone:', sessionData.customer_phone)
+    const { data: customer, error: customerFetchError } = await supabase
+      .from('customers')
+      .select('*')
+      .eq('user_id', owner.id)
+      .eq('phone_number', sessionData.customer_phone)
+      .maybeSingle()
+    
+    if (customerFetchError) {
+      console.error('Customer fetch error:', customerFetchError)
+      throw customerFetchError
+    }
+    
+    let customerId = customer?.id
+    
+    if (!customerId) {
+      console.log('Creating new customer...')
+      const { data: newCustomer, error: customerCreateError } = await supabase
+        .from('customers')
+        .insert({
+          user_id: owner.id,
+          phone_number: sessionData.customer_phone,
+          name: sessionData.customer_name || 'WhatsApp Customer',
+          whatsapp_id: sessionData.customer_phone,
+        })
+        .select()
+        .single()
+      
+      if (customerCreateError) {
+        console.error('❌ Customer creation failed:', customerCreateError)
+        throw customerCreateError
+      }
+      
+      customerId = newCustomer.id
+      console.log('✅ Customer created:', customerId)
+    } else {
+      console.log('✅ Customer found:', customerId)
+    }
+    
+    // Create order based on payment method
+    if (paymentMethod === 'paystack') {
+    const orderData: any = {
+      user_id: owner.id,
+      customer_id: customerId,
+      item_type: itemType,
+      property_id: itemType === 'property' ? selectedItem.id : null,
+      service_id: itemType === 'service' ? selectedItem.id : null,
+      item_name: itemName,
+      item_description: selectedItem.description || '',
+      amount: selectedItem.price,
+      payment_method: 'card',
+      payment_status: 'unpaid',
+      status: 'pending',
+    }
+    
+    // Add event details for event planning
+    if (itemType === 'service' && sessionData.context.eventDate) {
+      orderData.event_date = sessionData.context.eventDate
+      orderData.event_time = sessionData.context.eventTime
+      orderData.guest_count = sessionData.context.guestCount
+      orderData.event_location = sessionData.context.eventLocation
+    }
+    
+    console.log('Creating order:', JSON.stringify(orderData, null, 2))
+    
+    const { data: order, error: orderError } = await supabase
       .from('orders')
-      .insert({
-        user_id: owner.id,
-        customer_phone: sessionData.customer_phone,
-        order_type: owner.business_type === 'real_estate' ? 'property' : 'service',
-        item_id: selectedItem.id,
-        amount: selectedItem.price,
-        payment_method: 'paystack',
-        payment_status: 'pending',
-      })
+      .insert(orderData)
       .select()
       .single()
+    
+    if (orderError) {
+      console.error('❌ ORDER CREATION FAILED:', orderError)
+      throw orderError
+    }
+    
+    console.log('✅✅✅ ORDER CREATED:', order.id, 'Amount:', order.amount)
     
     const paymentUrl = `${config.app.url}/payment/create?order=${order.id}`
     
@@ -327,33 +499,65 @@ async function handlePaymentChoice(supabase: any, owner: any, intent: any, sessi
         },
       },
     }
-  } else {
-    const { data: order } = await supabase
-      .from('orders')
-      .insert({
+    } else {
+      // Manual payment
+      const orderData: any = {
         user_id: owner.id,
-        customer_phone: sessionData.customer_phone,
-        order_type: owner.business_type === 'real_estate' ? 'property' : 'service',
-        item_id: selectedItem.id,
+        customer_id: customerId,
+        item_type: itemType,
+        property_id: itemType === 'property' ? selectedItem.id : null,
+        service_id: itemType === 'service' ? selectedItem.id : null,
+        item_name: itemName,
+        item_description: selectedItem.description || '',
         amount: selectedItem.price,
-        payment_method: 'manual',
-        payment_status: 'pending',
-      })
-      .select()
-      .single()
-    
-    return {
-      text: `For manual payment, please transfer ₦${selectedItem.price.toLocaleString()} to:\n\n🏦 Bank: ${owner.bank_name}\n💳 Account: ${owner.account_number}\n👤 Name: ${owner.account_name}\n\nAfter payment, our team will confirm within 5 minutes to 14 hours. Thank you!`,
-      media: [],
-      sessionData: {
-        ...sessionData,
-        context: {
-          ...sessionData.context,
-          orderId: order.id,
-          paymentMethod: 'manual',
-          awaitingPayment: false,
+        payment_method: 'bank_transfer',
+        payment_status: 'unpaid',
+        status: 'pending',
+      }
+      
+      // Add event details for event planning
+      if (itemType === 'service' && sessionData.context.eventDate) {
+        orderData.event_date = sessionData.context.eventDate
+        orderData.event_time = sessionData.context.eventTime
+        orderData.guest_count = sessionData.context.guestCount
+        orderData.event_location = sessionData.context.eventLocation
+      }
+      
+      console.log('Creating manual payment order:', JSON.stringify(orderData, null, 2))
+      
+      const { data: order, error: orderError } = await supabase
+        .from('orders')
+        .insert(orderData)
+        .select()
+        .single()
+      
+      if (orderError) {
+        console.error('❌ MANUAL ORDER CREATION FAILED:', orderError)
+        throw orderError
+      }
+      
+      console.log('✅✅✅ MANUAL ORDER CREATED:', order.id, 'Amount:', order.amount)
+      
+      return {
+        text: `For manual payment, please transfer ₦${selectedItem.price.toLocaleString()} to:\n\n🏦 Bank: ${owner.bank_name}\n💳 Account: ${owner.account_number}\n👤 Name: ${owner.account_name}\n\nAfter payment, our team will confirm within 5 minutes to 14 hours. Thank you!`,
+        media: [],
+        sessionData: {
+          ...sessionData,
+          context: {
+            ...sessionData.context,
+            orderId: order.id,
+            paymentMethod: 'manual',
+            awaitingPayment: false,
+          },
         },
-      },
+      }
+    }
+  } catch (error) {
+    console.error('❌ PAYMENT HANDLER ERROR:', error)
+    return {
+      text: 'Sorry, there was an error processing your request. Please try again.',
+      media: [],
+      sessionData,
     }
   }
 }

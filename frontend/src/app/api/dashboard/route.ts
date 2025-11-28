@@ -1,104 +1,66 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const supabase = await createClient();
-    
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError || !user) {
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get user data
-    const { data: userData, error: userError } = await supabase
+    // Get user profile
+    const { data: profile } = await supabase
       .from('flowserve_users')
       .select('*')
       .eq('id', user.id)
       .single();
 
-    if (userError || !userData) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
-    const businessType = userData.business_type;
-
-    // Get metrics based on business type
-    let metrics = {
-      totalSales: 0,
-      totalLeads: 0,
-      conversionRate: 0,
-      revenue: 0,
-      activeCustomers: 0,
-      pendingOrders: 0,
-    };
-
-    // Get orders/sales data
+    // Get orders
     const { data: orders } = await supabase
       .from('orders')
       .select('*')
       .eq('user_id', user.id);
 
-    if (orders) {
-      metrics.totalSales = orders.filter(o => o.payment_status === 'completed').length;
-      metrics.revenue = orders
-        .filter(o => o.payment_status === 'completed')
-        .reduce((sum, o) => sum + parseFloat(o.amount || '0'), 0);
-      metrics.pendingOrders = orders.filter(o => o.payment_status === 'pending').length;
-    }
+    const totalRevenue = orders
+      ?.filter(o => o.payment_status === 'completed')
+      .reduce((sum, o) => sum + parseFloat(o.amount || '0'), 0) || 0;
 
-    // Get WhatsApp sessions as leads
-    const { data: sessions } = await supabase
-      .from('whatsapp_sessions')
-      .select('*')
-      .eq('user_id', user.id);
+    const totalOrders = orders?.length || 0;
+    const pendingOrders = orders?.filter(o => o.payment_status === 'pending').length || 0;
 
-    if (sessions) {
-      metrics.totalLeads = sessions.length;
-      metrics.activeCustomers = sessions.length;
-    }
+    // Get unique customers
+    const uniqueCustomers = new Set(orders?.map(o => o.customer_phone)).size;
 
-    // Get properties or services count based on business type
-    if (businessType === 'real_estate') {
-      const { count: propertiesCount } = await supabase
-        .from('properties')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .is('deleted_at', null);
-
-      metrics.pendingOrders = propertiesCount || 0;
-    } else if (businessType === 'event_planning') {
-      const { count: servicesCount } = await supabase
-        .from('services')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id);
-
-      metrics.pendingOrders = servicesCount || 0;
-    }
-
-    // Calculate conversion rate
-    if (metrics.totalLeads > 0) {
-      metrics.conversionRate = Math.round((metrics.totalSales / metrics.totalLeads) * 100);
-    }
-
-    // Get recent activity from orders
-    const formattedActivity = orders?.slice(0, 5).map(o => ({
-      title: `Order ${o.payment_status === 'completed' ? 'completed' : 'pending'}`,
-      time: new Date(o.created_at).toLocaleString(),
-    })) || [];
+    // Get active listings
+    const tableName = profile?.business_type === 'real_estate' ? 'properties' : 'services';
+    const { count: activeListings } = await supabase
+      .from(tableName)
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .is('deleted_at', null);
 
     return NextResponse.json({
-      businessType,
-      metrics,
-      recentActivity: formattedActivity,
+      businessType: profile?.business_type,
+      metrics: {
+        totalSales: totalOrders,
+        totalLeads: uniqueCustomers,
+        conversionRate: totalOrders > 0 ? (totalOrders / uniqueCustomers) * 100 : 0,
+        revenue: totalRevenue,
+        activeCustomers: uniqueCustomers,
+        pendingOrders,
+      },
       user: {
-        fullName: userData.full_name || 'User',
-        businessName: userData.business_name || 'My Business',
+        fullName: profile?.full_name,
+        businessName: profile?.business_name,
       },
     });
-  } catch (error) {
-    console.error('Dashboard API error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  } catch (error: any) {
+    console.error('Error fetching dashboard data:', error);
+    return NextResponse.json(
+      { error: error.message || 'Failed to fetch dashboard data' },
+      { status: 500 }
+    );
   }
 }
