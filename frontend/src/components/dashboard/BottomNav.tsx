@@ -53,7 +53,7 @@ export default function BottomNav() {
     },
     {
       icon: <Bell className="w-6 h-6" />,
-      label: 'Alerts',
+      label: '',
       path: '/dashboard/notifications',
       badge: unreadCount,
     },

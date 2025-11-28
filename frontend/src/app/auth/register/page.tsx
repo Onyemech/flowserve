@@ -107,23 +107,7 @@ export default function RegisterPage() {
         </div>
         <h1 className="text-gray-900 dark:text-white tracking-tight text-3xl font-bold leading-tight text-center pb-2">Create Your Admin Account</h1>
         <p className="text-gray-600 dark:text-gray-300 text-base font-normal leading-normal pb-8 text-center">Manage your WhatsApp business automation in one place.</p>
-        <div className="flex pb-4">
-          <button onClick={handleGoogleRegister} disabled={isLoading} className="flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-5 bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-white gap-3 text-base font-bold border border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors disabled:opacity-50">
-            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24">
-              <path d="M22.56 12.25C22.56 11.45 22.49 10.68 22.36 9.92H12V14.45H18.02C17.75 15.93 16.92 17.21 15.65 18.06V20.84H19.46C21.45 19.01 22.56 15.93 22.56 12.25Z" fill="#4285F4"></path>
-              <path d="M12 23C14.97 23 17.45 22.04 19.46 20.84L15.65 18.06C14.66 18.72 13.43 19.12 12 19.12C9.11 19.12 6.64 17.28 5.75 14.8L1.8 17.65C3.54 20.95 7.42 23 12 23Z" fill="#34A853"></path>
-              <path d="M5.75 14.8C5.54 14.23 5.43 13.62 5.43 13C5.43 12.38 5.54 11.77 5.75 11.2L1.8 8.35C0.96 10.02 0.44 11.45 0.44 13C0.44 14.55 0.96 15.98 1.8 17.65L5.75 14.8Z" fill="#FBBC05"></path>
-              <path d="M12 6.88C13.56 6.88 14.88 7.44 15.89 8.39L19.54 4.89C17.45 3.02 14.97 2 12 2C7.42 2 3.54 4.05 1.8 7.35L5.75 10.2C6.64 7.72 9.11 6.88 12 6.88Z" fill="#EA4335"></path>
-            </svg>
-            Sign up with Google
-          </button>
-        </div>
-        <div className="flex items-center gap-4 py-2">
-          <hr className="flex-1 border-gray-200 dark:border-gray-700" />
-          <p className="text-gray-500 dark:text-gray-400 text-sm font-normal">or</p>
-          <hr className="flex-1 border-gray-200 dark:border-gray-700" />
-        </div>
-        <form onSubmit={handleEmailRegister} className="space-y-4 pt-4">
+        <form onSubmit={handleEmailRegister} className="space-y-4">
           <div className="flex flex-col gap-2">
             <label className="text-gray-900 dark:text-white text-base font-medium">Full Name</label>
             <input type="text" value={formData.fullName} onChange={(e) => setFormData({ ...formData, fullName: e.target.value })} placeholder="Enter your full name" disabled={isLoading} className="flex w-full rounded-lg bg-gray-50 dark:bg-[#193322] border border-gray-300 dark:border-gray-600 px-4 py-3 text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400 focus:ring-2 focus:ring-[#4A90E2]/50 focus:border-[#4A90E2] outline-none" />
