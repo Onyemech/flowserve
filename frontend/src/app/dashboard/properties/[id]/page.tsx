@@ -20,20 +20,24 @@ interface Property {
   created_at: string;
 }
 
-export default function PropertyDetailPage({ params }: { params: { id: string } }) {
+export default function PropertyDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const [property, setProperty] = useState<Property | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState(0);
+  const [propertyId, setPropertyId] = useState<string>('');
 
   useEffect(() => {
-    fetchProperty();
-  }, [params.id]);
+    params.then(p => {
+      setPropertyId(p.id);
+      fetchProperty(p.id);
+    });
+  }, []);
 
-  const fetchProperty = async () => {
+  const fetchProperty = async (id: string) => {
     try {
       setLoading(true);
-      const res = await fetch(`/api/properties/${params.id}`);
+      const res = await fetch(`/api/properties/${id}`);
       const data = await res.json();
       
       if (res.ok) {
@@ -51,9 +55,10 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
 
   const deleteProperty = async () => {
     if (!confirm('Are you sure you want to delete this property?')) return;
+    if (!propertyId) return;
 
     try {
-      const res = await fetch(`/api/properties/${params.id}`, {
+      const res = await fetch(`/api/properties/${propertyId}`, {
         method: 'DELETE',
       });
 

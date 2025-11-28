@@ -19,8 +19,7 @@ export default function CustomersPage() {
   const [formData, setFormData] = useState({
     name: '',
     phone_number: '',
-    email: '',
-    whatsapp_id: ''
+    email: ''
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -58,7 +57,7 @@ export default function CustomersPage() {
       if (res.ok) {
         alert('Customer added successfully');
         setShowAddModal(false);
-        setFormData({ name: '', phone_number: '', email: '', whatsapp_id: '' });
+        setFormData({ name: '', phone_number: '', email: '' });
         fetchCustomers();
       } else {
         const data = await res.json();
@@ -155,21 +154,13 @@ export default function CustomersPage() {
                 />
               </div>
               <div className="mb-4">
-                <label className="block text-sm font-medium mb-2">Email</label>
+                <label className="block text-sm font-medium mb-2">Email (Optional)</label>
                 <input
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className="w-full p-3 border rounded-lg"
-                />
-              </div>
-              <div className="mb-4">
-                <label className="block text-sm font-medium mb-2">WhatsApp ID</label>
-                <input
-                  type="text"
-                  value={formData.whatsapp_id}
-                  onChange={(e) => setFormData({ ...formData, whatsapp_id: e.target.value })}
-                  className="w-full p-3 border rounded-lg"
+                  placeholder="customer@example.com"
                 />
               </div>
               <div className="flex gap-2">
