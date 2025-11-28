@@ -461,12 +461,12 @@ async function handlePaymentChoice(supabase: any, owner: any, intent: any, sessi
       status: 'pending',
     }
     
-    // Add event details for event planning
-    if (itemType === 'service' && sessionData.context.eventDate) {
+    // Add event details for event planning (only if they exist)
+    if (itemType === 'service' && sessionData.context?.eventDate) {
       orderData.event_date = sessionData.context.eventDate
-      orderData.event_time = sessionData.context.eventTime
-      orderData.guest_count = sessionData.context.guestCount
-      orderData.event_location = sessionData.context.eventLocation
+      if (sessionData.context.eventTime) orderData.event_time = sessionData.context.eventTime
+      if (sessionData.context.guestCount) orderData.guest_count = sessionData.context.guestCount
+      if (sessionData.context.eventLocation) orderData.event_location = sessionData.context.eventLocation
     }
     
     console.log('Creating order:', JSON.stringify(orderData, null, 2))
@@ -515,12 +515,12 @@ async function handlePaymentChoice(supabase: any, owner: any, intent: any, sessi
         status: 'pending',
       }
       
-      // Add event details for event planning
-      if (itemType === 'service' && sessionData.context.eventDate) {
+      // Add event details for event planning (only if they exist)
+      if (itemType === 'service' && sessionData.context?.eventDate) {
         orderData.event_date = sessionData.context.eventDate
-        orderData.event_time = sessionData.context.eventTime
-        orderData.guest_count = sessionData.context.guestCount
-        orderData.event_location = sessionData.context.eventLocation
+        if (sessionData.context.eventTime) orderData.event_time = sessionData.context.eventTime
+        if (sessionData.context.guestCount) orderData.guest_count = sessionData.context.guestCount
+        if (sessionData.context.eventLocation) orderData.event_location = sessionData.context.eventLocation
       }
       
       console.log('Creating manual payment order:', JSON.stringify(orderData, null, 2))
