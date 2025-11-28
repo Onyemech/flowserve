@@ -102,13 +102,21 @@ export default function SettingsPage() {
   const webhookUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/whatsapp-webhook`
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">WhatsApp Settings</h1>
-      <p className="text-gray-600 dark:text-gray-400 mb-8">
-        Connect your WhatsApp Business account to activate the AI agent
-      </p>
+    <div className="min-h-screen bg-gray-50 pb-20">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white sticky top-0 z-40">
+        <div className="flex items-center gap-3 p-4">
+          <button onClick={() => router.back()} className="p-2 hover:bg-white/10 rounded-lg">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <h1 className="text-xl font-bold">WhatsApp Settings</h1>
+        </div>
+      </div>
 
-      {profile?.whatsapp_connected && (
+      <div className="p-4">
+        {profile?.whatsapp_connected && (
         <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
           <div className="flex items-center gap-2">
             <svg className="w-5 h-5 text-green-600 dark:text-green-400" fill="currentColor" viewBox="0 0 20 20">

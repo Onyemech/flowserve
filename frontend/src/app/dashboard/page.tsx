@@ -184,9 +184,9 @@ export default function DashboardPage() {
               onClick={() => router.push(isRealEstate ? '/dashboard/properties/new' : '/dashboard/services/new')}
             />
             <ActionButton
-              icon={<Users className="w-5 h-5" />}
-              label="View Leads"
-              onClick={() => router.push('/dashboard/leads')}
+              icon={<Package className="w-5 h-5" />}
+              label="Orders"
+              onClick={() => router.push('/dashboard/orders')}
             />
             {isEventPlanning && (
               <ActionButton

@@ -40,6 +40,9 @@ export default function LandingPage() {
     if (isStandalone) {
       setIsInstalled(true)
       setIsInstallable(false)
+    } else {
+      // Always show install button if not in standalone mode
+      setIsInstallable(true)
     }
 
     // Listen for install prompt
@@ -66,7 +69,11 @@ export default function LandingPage() {
   }, [router])
 
   const handleInstallClick = async () => {
-    if (!deferredPrompt) return
+    if (!deferredPrompt) {
+      // If no prompt available, show instructions
+      alert('To install:\n\n• Chrome/Edge: Look for install icon in address bar\n• Safari: Tap Share → Add to Home Screen\n• Firefox: Tap Menu → Install')
+      return
+    }
 
     deferredPrompt.prompt()
     const { outcome } = await deferredPrompt.userChoice
