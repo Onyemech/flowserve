@@ -88,68 +88,64 @@ function VerifyEmailForm() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-[#E8EBF0] dark:bg-[#102216] px-4">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
-          <h1 className="text-3xl font-bold text-foreground">Email Verification</h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Email Verification</h1>
         </div>
 
-        <div className="bg-white p-8 rounded-lg shadow-md">
+        <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md">
           {isVerifying ? (
             <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-              <p className="text-gray-600">Verifying your email...</p>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-gray-600 dark:text-gray-400">Verifying your email...</p>
             </div>
           ) : status === 'success' ? (
             <div className="text-center py-8">
-              <svg className="w-16 h-16 text-success mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-16 h-16 text-green-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <h2 className="text-xl font-semibold text-foreground mb-2">Email Verified!</h2>
-              <p className="text-gray-600">{message}</p>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Email Verified!</h2>
+              <p className="text-gray-600 dark:text-gray-400">{message}</p>
             </div>
           ) : status === 'error' ? (
             <div className="text-center py-8">
-              <svg className="w-16 h-16 text-error mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-16 h-16 text-red-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <h2 className="text-xl font-semibold text-foreground mb-2">Verification Failed</h2>
-              <p className="text-gray-600 mb-6">{message}</p>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Verification Failed</h2>
+              <p className="text-gray-600 dark:text-gray-400 mb-6">{message}</p>
               
-              <Button
-                variant="primary"
-                size="lg"
-                className="w-full"
+              <button
                 onClick={handleResendVerification}
-                isLoading={isResending}
+                disabled={isResending}
+                className="w-full py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50"
               >
-                Resend Verification Email
-              </Button>
+                {isResending ? 'Sending...' : 'Resend Verification Email'}
+              </button>
             </div>
           ) : (
             <div className="text-center py-8">
-              <svg className="w-16 h-16 text-info mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-16 h-16 text-blue-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
-              <h2 className="text-xl font-semibold text-foreground mb-2">Check Your Email</h2>
-              <p className="text-gray-600 mb-6">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Check Your Email</h2>
+              <p className="text-gray-600 dark:text-gray-400 mb-6">
                 We've sent a verification link to your email address. Please click the link to verify your account.
               </p>
               
-              <Button
-                variant="outline"
-                size="lg"
-                className="w-full"
+              <button
                 onClick={handleResendVerification}
-                isLoading={isResending}
+                disabled={isResending}
+                className="w-full py-3 bg-white border-2 border-blue-600 text-blue-600 rounded-lg font-semibold hover:bg-blue-50 disabled:opacity-50"
               >
-                Resend Verification Email
-              </Button>
+                {isResending ? 'Sending...' : 'Resend Verification Email'}
+              </button>
             </div>
           )}
 
           <div className="mt-6 text-center">
-            <Link href="/auth/login" className="text-sm text-primary hover:underline">
+            <Link href="/auth/login" className="text-sm text-blue-600 hover:underline">
               Back to Login
             </Link>
           </div>
