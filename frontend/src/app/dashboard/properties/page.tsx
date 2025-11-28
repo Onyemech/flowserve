@@ -175,7 +175,7 @@ export default function PropertiesPage() {
                       className="flex-1 flex items-center justify-center gap-1 bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200 font-medium"
                     >
                       <Eye size={16} />
-                      View
+                      Details
                     </button>
                     <button
                       onClick={() => router.push(`/dashboard/properties/edit/${property.id}`)}

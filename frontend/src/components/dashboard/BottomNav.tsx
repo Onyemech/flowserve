@@ -52,9 +52,10 @@ export default function BottomNav() {
       path: '/dashboard/customers',
     },
     {
-      icon: <Settings className="w-6 h-6" />,
-      label: 'Settings',
-      path: '/dashboard/settings',
+      icon: <Bell className="w-6 h-6" />,
+      label: 'Alerts',
+      path: '/dashboard/notifications',
+      badge: unreadCount,
     },
   ];
 

@@ -146,22 +146,24 @@ async function processIncomingMessage(message: any, metadata: any) {
       media: mediaUrl,
     })
     
-    // TODO: Call AI agent to process and respond
-    // This will invoke the whatsapp-agent function
+    // Call AI agent to process and respond
     const agentResponse = await fetch(
       `${Deno.env.get('SUPABASE_URL')}/functions/v1/whatsapp-agent`,
       {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${Deno.env.get('SUPABASE_ANON_KEY')}`,
+          'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
         },
         body: JSON.stringify({
-          from,
-          message: messageText,
-          messageType,
-          mediaUrl,
-          timestamp,
+          entry: [{
+            changes: [{
+              value: {
+                messages: [message],
+                metadata: metadata,
+              },
+            }],
+          }],
         }),
       }
     )
