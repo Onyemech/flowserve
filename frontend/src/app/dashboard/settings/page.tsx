@@ -1,9 +1,11 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { useToast } from '@/components/ui/Toast'
 import { createClient } from '@/lib/supabase/client'
 
 export default function SettingsPage() {
+  const router = useRouter()
   const { showToast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
   const [profile, setProfile] = useState<any>(null)
@@ -212,6 +214,7 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
+      </div>
     </div>
   )
 }
