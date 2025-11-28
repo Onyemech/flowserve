@@ -16,6 +16,7 @@ interface Order {
   amount: number;
   status: string;
   payment_status: string;
+  payment_method?: string;
   created_at: string;
 }
 

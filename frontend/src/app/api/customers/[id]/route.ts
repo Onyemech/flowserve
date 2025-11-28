@@ -3,9 +3,10 @@ import { createClient } from '@/lib/supabase/server';
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
@@ -17,7 +18,7 @@ export async function GET(
       .from('whatsapp_sessions')
       .select('*')
       .eq('user_id', user.id)
-      .eq('customer_phone', params.id)
+      .eq('customer_phone', id)
       .single();
 
     if (error) throw error;

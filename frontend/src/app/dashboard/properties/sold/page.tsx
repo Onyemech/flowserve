@@ -185,7 +185,7 @@ export default function SoldPropertiesPage() {
                           Images scheduled for cleanup
                         </p>
                       )}
-                      {isDeleted && (
+                      {isDeleted && property.deleted_at && (
                         <p className="text-xs text-gray-500 mt-1">
                           Images cleaned up on {new Date(property.deleted_at).toLocaleDateString()}
                         </p>
