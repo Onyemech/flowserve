@@ -59,7 +59,6 @@ export default function NewServicePage() {
     setLoading(true);
 
     try {
-      // Add 2% Paystack charges to the price
       const basePrice = parseFloat(formData.price);
       const priceWithCharges = basePrice * 1.02;
 

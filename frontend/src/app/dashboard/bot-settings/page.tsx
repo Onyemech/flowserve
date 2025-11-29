@@ -43,7 +43,6 @@ export default function BotSettingsPage() {
     setTestResult(null);
 
     try {
-      // Test the WhatsApp webhook endpoint
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/whatsapp-webhook`,
         {
