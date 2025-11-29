@@ -70,17 +70,37 @@ export default function LandingPage() {
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) {
-      // If no prompt available, show instructions
-      alert('To install:\n\n• Chrome/Edge: Look for install icon in address bar\n• Safari: Tap Share → Add to Home Screen\n• Firefox: Tap Menu → Install')
+      // If no prompt available, show instructions with confirm dialog
+      const userConfirmed = confirm(
+        'To install:\n\n' +
+        '• Chrome/Edge: Look for install icon in address bar\n' +
+        '• Safari: Tap Share → Add to Home Screen\n' +
+        '• Firefox: Tap Menu → Install\n\n' +
+        'Click OK to continue'
+      )
+      
+      if (userConfirmed) {
+        // Try to trigger install if browser supports it
+        // For browsers that don't support beforeinstallprompt
+        console.log('User confirmed install instructions')
+      }
       return
     }
 
-    deferredPrompt.prompt()
-    const { outcome } = await deferredPrompt.userChoice
+    // For browsers that support beforeinstallprompt (Chrome, Edge)
+    try {
+      await deferredPrompt.prompt()
+      const { outcome } = await deferredPrompt.userChoice
 
-    if (outcome === 'accepted') {
-      setIsInstallable(false)
-      setDeferredPrompt(null)
+      if (outcome === 'accepted') {
+        console.log('User accepted the install prompt')
+        setIsInstallable(false)
+        setDeferredPrompt(null)
+      } else {
+        console.log('User dismissed the install prompt')
+      }
+    } catch (error) {
+      console.error('Error showing install prompt:', error)
     }
   }
 
