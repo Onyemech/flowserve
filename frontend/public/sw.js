@@ -1,9 +1,8 @@
-// FlowServe AI Service Worker
-const CACHE_NAME = 'flowserve-v1'
+// FlowServe AI Service Worker - Network First Strategy
+const CACHE_NAME = 'flowserve-v2' // Increment version to force update
 const OFFLINE_URL = '/offline.html'
 
 const STATIC_ASSETS = [
-  '/',
   '/offline.html',
   '/manifest.json',
   '/icon-192x192.svg',
@@ -18,7 +17,7 @@ self.addEventListener('install', (event) => {
       return cache.addAll(STATIC_ASSETS)
     })
   )
-  self.skipWaiting()
+  self.skipWaiting() // Force activate immediately
 })
 
 // Activate event - clean up old caches
@@ -32,10 +31,10 @@ self.addEventListener('activate', (event) => {
       )
     })
   )
-  self.clients.claim()
+  self.clients.claim() // Take control immediately
 })
 
-// Fetch event - serve from cache, fallback to network
+// Fetch event - NETWORK FIRST, fallback to cache
 self.addEventListener('fetch', (event) => {
   // Skip non-GET requests
   if (event.request.method !== 'GET') return
@@ -43,58 +42,56 @@ self.addEventListener('fetch', (event) => {
   // Skip chrome extensions and other non-http(s) requests
   if (!event.request.url.startsWith('http')) return
 
+  // Skip API requests - always use network
+  if (event.request.url.includes('/api/')) {
+    event.respondWith(fetch(event.request))
+    return
+  }
+
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse
-      }
+    fetch(event.request)
+      .then((response) => {
+        // Don't cache non-successful responses
+        if (!response || response.status !== 200 || response.type === 'error') {
+          return response
+        }
 
-      return fetch(event.request)
-        .then((response) => {
-          // Don't cache non-successful responses
-          if (!response || response.status !== 200 || response.type === 'error') {
-            return response
-          }
+        // Clone the response
+        const responseToCache = response.clone()
 
-          // Clone the response
-          const responseToCache = response.clone()
-
-          // Cache successful responses
+        // Only cache static assets and images
+        if (
+          event.request.url.includes('.svg') ||
+          event.request.url.includes('.png') ||
+          event.request.url.includes('.jpg') ||
+          event.request.url.includes('.webp') ||
+          event.request.url.includes('manifest.json')
+        ) {
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(event.request, responseToCache)
           })
+        }
 
-          return response
-        })
-        .catch(() => {
+        return response
+      })
+      .catch(() => {
+        // Fallback to cache only when network fails
+        return caches.match(event.request).then((cachedResponse) => {
+          if (cachedResponse) {
+            return cachedResponse
+          }
           // Return offline page for navigation requests
           if (event.request.mode === 'navigate') {
             return caches.match(OFFLINE_URL)
           }
         })
-    })
+      })
   )
 })
 
-// Push notification event
-self.addEventListener('push', (event) => {
-  const data = event.data ? event.data.json() : {}
-  const title = data.title || 'FlowServe AI'
-  const options = {
-    body: data.body || 'You have a new notification',
-    icon: '/icon-192x192.png',
-    badge: '/icon-72x72.png',
-    vibrate: [200, 100, 200],
-    data: data.url || '/',
+// Message event - handle skip waiting
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting()
   }
-
-  event.waitUntil(self.registration.showNotification(title, options))
-})
-
-// Notification click event
-self.addEventListener('notificationclick', (event) => {
-  event.notification.close()
-  event.waitUntil(
-    clients.openWindow(event.notification.data || '/')
-  )
 })

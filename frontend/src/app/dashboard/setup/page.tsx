@@ -15,6 +15,7 @@ export default function SetupPage() {
   const { showToast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
   const [isVerifying, setIsVerifying] = useState(false)
+  const [isCheckingName, setIsCheckingName] = useState(false)
   const [banks, setBanks] = useState<Bank[]>([])
   const [filteredBanks, setFilteredBanks] = useState<Bank[]>([])
   const [bankSearch, setBankSearch] = useState('')
@@ -35,7 +36,7 @@ export default function SetupPage() {
 
   useEffect(() => {
     if (bankSearch) {
-      const filtered = banks.filter(bank => 
+      const filtered = banks.filter(bank =>
         bank.name.toLowerCase().includes(bankSearch.toLowerCase())
       )
       setFilteredBanks(filtered)
@@ -63,6 +64,26 @@ export default function SetupPage() {
     } catch (error) {
       console.error('Failed to fetch banks:', error)
       showToast('error', 'Failed to load banks')
+    }
+  }
+
+  const checkBusinessNameAvailability = async (name: string): Promise<boolean> => {
+    if (!name.trim()) return false
+    setIsCheckingName(true)
+    try {
+      const response = await fetch(`/api/profile/check-business-name?name=${encodeURIComponent(name)}`)
+      const data = await response.json()
+      if (data.exists) {
+        setErrors(prev => ({ ...prev, business_name: 'This business name is already taken. Please choose a different name.' }))
+        return false
+      }
+      setErrors(prev => ({ ...prev, business_name: '' }))
+      return true
+    } catch (error) {
+      console.error('Error checking business name:', error)
+      return true // Allow submission on error
+    } finally {
+      setIsCheckingName(false)
     }
   }
 
@@ -116,6 +137,14 @@ export default function SetupPage() {
       showToast('error', 'Please fill in all required fields')
       return
     }
+
+    // Check business name availability before submitting
+    const isAvailable = await checkBusinessNameAvailability(formData.business_name)
+    if (!isAvailable) {
+      showToast('error', 'This business name is already taken')
+      return
+    }
+
     setIsLoading(true)
     try {
       const response = await fetch('/api/profile/setup', {
@@ -124,7 +153,14 @@ export default function SetupPage() {
         body: JSON.stringify(formData),
       })
       const data = await response.json()
-      if (!response.ok) throw new Error(data.error || 'Setup failed')
+      if (!response.ok) {
+        // Handle unique constraint violation from database
+        if (data.error?.includes('duplicate') || data.error?.includes('unique_business_name')) {
+          setErrors({ business_name: 'This business name is already taken. Please choose a different name.' })
+          throw new Error('This business name is already taken')
+        }
+        throw new Error(data.error || 'Setup failed')
+      }
       showToast('success', 'Profile setup complete!')
       router.push('/dashboard')
     } catch (error: any) {
@@ -154,16 +190,32 @@ export default function SetupPage() {
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">Business Name</label>
+              <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
+                Business Name
+                {isCheckingName && <span className="ml-2 text-xs text-blue-600">Checking availability...</span>}
+              </label>
               <input
                 type="text"
                 value={formData.business_name}
-                onChange={(e) => setFormData({ ...formData, business_name: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, business_name: e.target.value })
+                  // Clear error when typing
+                  if (errors.business_name) {
+                    setErrors({ ...errors, business_name: '' })
+                  }
+                }}
+                onBlur={() => {
+                  // Check availability when user finishes typing
+                  if (formData.business_name.trim()) {
+                    checkBusinessNameAvailability(formData.business_name)
+                  }
+                }}
                 placeholder="My Business Ltd"
                 disabled={isLoading}
                 className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#4A90E2] focus:border-[#4A90E2]"
               />
               {errors.business_name && <p className="mt-1 text-sm text-red-500">{errors.business_name}</p>}
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">This name must be unique and will be used for customer connections</p>
             </div>
 
             <div>
