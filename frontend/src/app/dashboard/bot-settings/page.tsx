@@ -142,6 +142,22 @@ export default function BotSettingsPage() {
 
           <div className="mt-4 border-t pt-4">
             <p className="text-sm text-gray-600 mb-2">Smart Connection Link (Share this with customers):</p>
+            
+            {/* Warning for Placeholder Number */}
+            {(process.env.NEXT_PUBLIC_PLATFORM_WHATSAPP_NUMBER === '15550239843' || !process.env.NEXT_PUBLIC_PLATFORM_WHATSAPP_NUMBER) && (
+              <div className="mb-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg flex items-start gap-2">
+                <div className="mt-0.5 text-yellow-600">⚠️</div>
+                <div>
+                  <p className="text-sm font-medium text-yellow-800">Configuration Required</p>
+                  <p className="text-xs text-yellow-700 mt-1">
+                    You are using a placeholder WhatsApp number. Please update 
+                    <code className="mx-1 bg-yellow-100 px-1 rounded">NEXT_PUBLIC_PLATFORM_WHATSAPP_NUMBER</code> 
+                    in your Vercel environment variables to your actual WhatsApp Business number.
+                  </p>
+                </div>
+              </div>
+            )}
+
             <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
               <code className="text-xs text-gray-800 flex-1 break-all">
                 {`https://wa.me/${process.env.NEXT_PUBLIC_PLATFORM_WHATSAPP_NUMBER || '15550239843'}?text=I want to connect with ${profile?.business_name || '...'}`}

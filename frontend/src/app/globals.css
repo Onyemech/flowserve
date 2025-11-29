@@ -1,75 +1,34 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
 @import "tailwindcss";
 
+@theme {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
 :root {
-  /* Landing Page Colors */
-  --landing-primary: #20C997;
-  --landing-bg-light: #F8F9FA;
-  --landing-bg-dark: #0A2540;
-  
-  /* Auth Pages Colors (Green Theme) */
-  --auth-green: #20C997;
-  --auth-bg-light: #f6f8f6;
-  --auth-bg-dark: #102216;
-  --auth-input-dark: #193322;
-  
-  /* Login Page Colors */
-  --login-primary: #20C997;
-  
-  /* Dashboard Colors */
-  --dash-primary: #4A90E2;
-  --dash-accent: #20C997;
-  --dash-bg-dark: #0F1419;
-  --dash-card-dark: #1A202C;
-  
-  /* Semantic Colors */
-  --success: #10b981;
-  --error: #ef4444;
-  --warning: #f59e0b;
-  --info: #3b82f6;
+  --background: #ffffff;
+  --foreground: #171717;
 }
 
-@theme inline {
-  --color-landing-primary: var(--landing-primary);
-  --color-auth-green: var(--auth-green);
-  --color-login-primary: var(--login-primary);
-  --color-dash-primary: var(--dash-primary);
-  --color-dash-accent: var(--dash-accent);
-  --color-dash-bg-dark: var(--dash-bg-dark);
-  --color-dash-card-dark: var(--dash-card-dark);
-  --color-success: var(--success);
-  --color-error: var(--error);
-  --color-warning: var(--warning);
-  --color-info: var(--info);
-  --font-display: "Inter", sans-serif;
-}
-
-html {
-  font-family: "Inter", sans-serif;
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
 }
 
 body {
-  min-height: max(884px, 100dvh);
-  font-family: "Inter", sans-serif;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
 
-/* Toast notification styles */
-.toast {
-  @apply rounded-lg shadow-lg px-4 py-3;
+/* Global Button Effects */
+button {
+  @apply transition-transform duration-100 active:scale-95;
 }
 
-.toast-success {
-  @apply bg-success text-white;
-}
-
-.toast-error {
-  @apply bg-error text-white;
-}
-
-.toast-warning {
-  @apply bg-warning text-white;
-}
-
-.toast-info {
-  @apply bg-info text-white;
+/* Safe area for bottom nav */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
 }
