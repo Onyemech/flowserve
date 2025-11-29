@@ -1,0 +1,9 @@
+n8n is a low-code automation tool
+Automation worksflow
+increased Efficiency
+Time and cost savings
+Scalability
+Improved Data Handling
+Enhanced customer experience
+Workflows, Nodes and Executions
+Nodes are like a specific instructions (eg like a function) one node does a specific task (eg sending a mail, pulling )

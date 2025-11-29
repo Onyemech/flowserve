@@ -3,13 +3,12 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { ArrowLeft, Bot, MessageSquare, Zap, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Bot, MessageSquare, Zap, CheckCircle, XCircle, RefreshCw, Copy } from 'lucide-react';
 import BottomNav from '@/components/dashboard/BottomNav';
 
 export default function BotSettingsPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState<any>(null);
   const [testingBot, setTestingBot] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
@@ -36,33 +35,6 @@ export default function BotSettingsPage() {
       console.error('Error fetching profile:', error);
     } finally {
       setLoading(false);
-    }
-  }
-
-  async function toggleBot() {
-    if (!profile) return;
-
-    setSaving(true);
-    try {
-      const newStatus = !profile.whatsapp_connected;
-      
-      const { error } = await supabase
-        .from('flowserve_users')
-        .update({
-          whatsapp_connected: newStatus,
-          whatsapp_connected_at: newStatus ? new Date().toISOString() : profile.whatsapp_connected_at,
-        })
-        .eq('id', profile.id);
-
-      if (error) throw error;
-
-      setProfile({ ...profile, whatsapp_connected: newStatus });
-      
-      alert(newStatus ? 'WhatsApp Bot activated!' : 'WhatsApp Bot deactivated');
-    } catch (error: any) {
-      alert('Error: ' + error.message);
-    } finally {
-      setSaving(false);
     }
   }
 
@@ -144,61 +116,72 @@ export default function BotSettingsPage() {
         <div className="bg-white rounded-2xl shadow-sm p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                profile?.whatsapp_connected ? 'bg-green-100' : 'bg-gray-100'
-              }`}>
-                <Bot className={`w-6 h-6 ${
-                  profile?.whatsapp_connected ? 'text-green-600' : 'text-gray-400'
-                }`} />
+              <div className="w-12 h-12 rounded-full flex items-center justify-center bg-green-100">
+                <Bot className="w-6 h-6 text-green-600" />
               </div>
               <div>
                 <h2 className="font-bold text-gray-900">Bot Status</h2>
-                <p className="text-sm text-gray-600">
-                  {profile?.whatsapp_connected ? 'Active' : 'Inactive'}
-                </p>
+                <p className="text-sm text-gray-600">Active (Managed by Platform)</p>
               </div>
             </div>
-            <button
-              onClick={toggleBot}
-              disabled={saving}
-              className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${
-                profile?.whatsapp_connected ? 'bg-green-600' : 'bg-gray-300'
-              } ${saving ? 'opacity-50' : ''}`}
-            >
-              <span
-                className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
-                  profile?.whatsapp_connected ? 'translate-x-7' : 'translate-x-1'
-                }`}
-              />
-            </button>
+            <div className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+              Active
+            </div>
           </div>
 
-          {profile?.whatsapp_connected && (
-            <div className="mt-4 p-3 bg-green-50 rounded-lg">
-              <div className="flex items-center gap-2 text-green-800">
-                <CheckCircle className="w-5 h-5" />
-                <span className="text-sm font-medium">
-                  Bot is active and responding to customers
-                </span>
-              </div>
-              {profile.whatsapp_connected_at && (
-                <p className="text-xs text-green-600 mt-1">
-                  Connected since {new Date(profile.whatsapp_connected_at).toLocaleDateString()}
-                </p>
-              )}
+          <div className="mt-4 p-3 bg-green-50 rounded-lg">
+            <div className="flex items-center gap-2 text-green-800">
+              <CheckCircle className="w-5 h-5" />
+              <span className="text-sm font-medium">
+                Your AI Assistant is ready!
+              </span>
             </div>
-          )}
+            <p className="text-xs text-green-600 mt-2">
+              Customers can start chatting with your business immediately.
+            </p>
+          </div>
 
-          {!profile?.whatsapp_connected && (
-            <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-              <div className="flex items-center gap-2 text-gray-600">
-                <XCircle className="w-5 h-5" />
-                <span className="text-sm font-medium">
-                  Bot is inactive. Toggle to activate.
-                </span>
-              </div>
+          <div className="mt-4 border-t pt-4">
+            <p className="text-sm text-gray-600 mb-2">Smart Connection Link (Share this with customers):</p>
+            <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+              <code className="text-xs text-gray-800 flex-1 break-all">
+                {`https://wa.me/${process.env.NEXT_PUBLIC_PLATFORM_WHATSAPP_NUMBER || '15550239843'}?text=I want to connect with ${profile?.business_name || '...'}`}
+              </code>
+              <button
+                onClick={() => {
+                  const link = `https://wa.me/${process.env.NEXT_PUBLIC_PLATFORM_WHATSAPP_NUMBER || '15550239843'}?text=I want to connect with ${profile?.business_name || '...'}`;
+                  navigator.clipboard.writeText(link);
+                  alert('Link copied!');
+                }}
+                className="p-2 hover:bg-gray-200 rounded-md text-gray-500"
+                title="Copy Link"
+              >
+                <Copy className="w-4 h-4" />
+              </button>
             </div>
-          )}
+            <p className="text-xs text-gray-500 mt-2">
+              When customers click this link, they will be instantly connected to your business.
+            </p>
+          </div>
+
+          <div className="mt-4 border-t pt-4">
+            <p className="text-sm text-gray-600 mb-2">Your Business Name (for manual connection):</p>
+            <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+              <span className="font-mono font-bold text-gray-800 flex-1">{profile?.business_name || 'Your Business Name'}</span>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(profile?.business_name || '');
+                  alert('Copied to clipboard!');
+                }}
+                className="p-2 hover:bg-gray-200 rounded-md text-gray-500"
+              >
+                <Copy className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              Tell your customers to message our WhatsApp number and type your business name to start.
+            </p>
+          </div>
         </div>
 
         {/* Test Bot */}
@@ -215,7 +198,7 @@ export default function BotSettingsPage() {
 
           <button
             onClick={testBot}
-            disabled={testingBot || !profile?.whatsapp_connected}
+            disabled={testingBot}
             className="w-full py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {testingBot ? (
@@ -232,18 +215,16 @@ export default function BotSettingsPage() {
           </button>
 
           {testResult && (
-            <div className={`mt-4 p-3 rounded-lg ${
-              testResult.success ? 'bg-green-50' : 'bg-red-50'
-            }`}>
+            <div className={`mt-4 p-3 rounded-lg ${testResult.success ? 'bg-green-50' : 'bg-red-50'
+              }`}>
               <div className="flex items-center gap-2">
                 {testResult.success ? (
                   <CheckCircle className="w-5 h-5 text-green-600" />
                 ) : (
                   <XCircle className="w-5 h-5 text-red-600" />
                 )}
-                <span className={`text-sm font-medium ${
-                  testResult.success ? 'text-green-800' : 'text-red-800'
-                }`}>
+                <span className={`text-sm font-medium ${testResult.success ? 'text-green-800' : 'text-red-800'
+                  }`}>
                   {testResult.message}
                 </span>
               </div>
@@ -290,32 +271,6 @@ export default function BotSettingsPage() {
               description="Uses advanced AI to understand customer intent"
             />
           </div>
-        </div>
-
-        {/* Webhook Info */}
-        <div className="bg-white rounded-2xl shadow-sm p-6">
-          <h2 className="font-bold text-gray-900 mb-4">Webhook Configuration</h2>
-          <div className="space-y-3">
-            <div>
-              <label className="text-sm text-gray-600 block mb-1">Webhook URL</label>
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <code className="text-xs text-gray-800 break-all">
-                  {process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/whatsapp-webhook
-                </code>
-              </div>
-            </div>
-            <div>
-              <label className="text-sm text-gray-600 block mb-1">Verify Token</label>
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <code className="text-xs text-gray-800">
-                  flowserve_webhook_verify_2025
-                </code>
-              </div>
-            </div>
-          </div>
-          <p className="text-xs text-gray-500 mt-4">
-            These credentials are configured in your Meta Developer Console for WhatsApp Business API.
-          </p>
         </div>
       </div>
 

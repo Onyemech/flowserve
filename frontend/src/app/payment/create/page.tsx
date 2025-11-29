@@ -41,8 +41,8 @@ function PaymentCreateContent() {
 
       if (error) throw error
       setSessionData(data)
-      setFormData(prev => ({ 
-        ...prev, 
+      setFormData(prev => ({
+        ...prev,
         phone: data.customer_phone,
         email: data.customer_email || '',
       }))
@@ -66,45 +66,27 @@ function PaymentCreateContent() {
         throw new Error('Order not found')
       }
 
-      // Update order with customer details
-      const supabase = createClient()
-      await supabase
-        .from('orders')
-        .update({
-          customer_name: formData.name,
-          customer_email: formData.email,
-        })
-        .eq('id', sessionData.id)
-
-      // Generate Paystack payment link
-      const paystackResponse = await fetch('https://api.paystack.co/transaction/initialize', {
+      // Initialize payment via secure API route
+      const response = await fetch('/api/paystack/initialize', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_PAYSTACK_SECRET_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          orderId: sessionData.id,
           email: formData.email,
-          amount: sessionData.amount * 100, // Convert to kobo
-          reference: sessionData.id,
-          callback_url: `${window.location.origin}/payment/callback`,
+          name: formData.name,
         }),
       })
 
-      const paystackData = await paystackResponse.json()
+      const data = await response.json()
 
-      if (!paystackData.status) {
-        throw new Error(paystackData.message || 'Failed to create payment link')
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Failed to initialize payment')
       }
 
-      // Update order with Paystack reference
-      await supabase
-        .from('orders')
-        .update({ paystack_reference: paystackData.data.reference })
-        .eq('id', sessionData.id)
-
       // Redirect to Paystack
-      window.location.href = paystackData.data.authorization_url
+      window.location.href = data.authorization_url
     } catch (error: any) {
       showToast('error', error.message)
       setIsLoading(false)

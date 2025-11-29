@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { createAIProvider } from '../_shared/ai-service.ts'
 import { config, validateConfig } from '../_shared/config.ts'
+import { determineTargetAdmin } from './routing.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -17,7 +18,7 @@ validateConfig([
   'whatsapp.phoneNumberId',
 ])
 
-// Initialize AI provider (easily swap between OpenAI, Claude, etc.)
+// Initialize AI provider
 const aiProvider = createAIProvider(config.ai)
 
 interface WhatsAppMessage {
@@ -33,7 +34,8 @@ serve(async (req) => {
 
   try {
     const body = await req.json()
-    
+    // phoneNumberId is now the Platform's ID, so we don't use it to find the admin anymore.
+
     const message = extractMessage(body)
     if (!message) {
       return new Response(JSON.stringify({ success: true }), {
@@ -46,33 +48,61 @@ serve(async (req) => {
       config.supabase.serviceRoleKey
     )
 
-    const session = await getOrCreateSession(supabase, message.from)
-    
-    const { data: owner } = await supabase
-      .from('flowserve_users')
-      .select('*')
-      .eq('id', session.user_id)
-      .single()
+    // ROUTING LOGIC
+    const routing = await determineTargetAdmin(supabase, message.from, message.text)
 
-    if (!owner) {
-      throw new Error('Business owner not found')
+    if (routing.action === 'ask_referral') {
+      // Check if the user is trying to join a specific business by name
+      // We search for a business where the name matches the message (fuzzy or exact)
+      const { data: business } = await supabase
+        .from('flowserve_users')
+        .select('*')
+        .ilike('business_name', `%${message.text.trim()}%`) // Loose match
+        .limit(1)
+        .maybeSingle()
+
+      if (business) {
+        // Found a match! Route to this admin and create mapping
+        await createMapping(supabase, message.from, business.id)
+        return await handleRoutedMessage(supabase, message, business)
+      }
+
+      // If no match, ask the user naturally
+      await sendPlatformMessage(message.from, `Welcome to FlowServe! 🚀\n\nI can connect you to any business on our platform.\n\nPlease type the **Business Name** you are looking for.`)
+      return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
-    const response = await processMessage(supabase, message, session, owner)
-    
-    await sendWhatsAppMessage(message.from, response.text, response.media)
-    
-    await supabase
-      .from('whatsapp_sessions')
-      .update({
-        session_data: response.sessionData,
-        last_message_at: new Date().toISOString(),
-      })
-      .eq('id', session.id)
+    if (routing.action === 'ask_selection') {
+      // If user replies with a number, select that admin
+      const selectionIndex = parseInt(message.text) - 1
+      if (!isNaN(selectionIndex) && routing.admins && routing.admins[selectionIndex]) {
+        const selectedAdmin = routing.admins[selectionIndex]
+        // Update session to lock to this admin
+        await getOrCreateSession(supabase, message.from, selectedAdmin.id)
+        return await handleRoutedMessage(supabase, message, selectedAdmin)
+      }
+
+      const options = routing.admins?.map((a, i) => `${i + 1}. ${a.business_name}`).join('\n')
+      await sendPlatformMessage(message.from, `You have visited multiple businesses. Who would you like to talk to?\n\n${options}\n\nReply with the number.`)
+      return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    }
+
+    if (routing.action === 'route' && routing.adminId) {
+      const { data: owner } = await supabase
+        .from('flowserve_users')
+        .select('*')
+        .eq('id', routing.adminId)
+        .single()
+
+      if (owner) {
+        return await handleRoutedMessage(supabase, message, owner)
+      }
+    }
 
     return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
+
   } catch (error) {
     console.error('WhatsApp agent error:', error)
     return new Response(JSON.stringify({ error: error.message }), {
@@ -82,12 +112,35 @@ serve(async (req) => {
   }
 })
 
+async function handleRoutedMessage(supabase: any, message: WhatsAppMessage, owner: any) {
+  console.log('Message routed to admin:', owner.business_name, owner.id)
+
+  // Get or create session for this customer with this specific admin
+  const session = await getOrCreateSession(supabase, message.from, owner.id)
+
+  const response = await processMessage(supabase, message, session, owner)
+
+  await sendPlatformMessage(message.from, response.text, response.media)
+
+  await supabase
+    .from('whatsapp_sessions')
+    .update({
+      session_data: response.sessionData,
+      last_message_at: new Date().toISOString(),
+    })
+    .eq('id', session.id)
+
+  return new Response(JSON.stringify({ success: true }), {
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  })
+}
+
 function extractMessage(body: any): WhatsAppMessage | null {
   try {
     const entry = body.entry?.[0]
     const change = entry?.changes?.[0]
     const message = change?.value?.messages?.[0]
-    
+
     if (!message) return null
 
     return {
@@ -100,31 +153,42 @@ function extractMessage(body: any): WhatsAppMessage | null {
   }
 }
 
-async function getOrCreateSession(supabase: any, phone: string) {
+async function createMapping(supabase: any, phone: string, adminId: string) {
+  await supabase
+    .from('customer_admin_mapping')
+    .insert({
+      customer_phone: phone,
+      admin_id: adminId,
+    })
+    .onConflict('customer_phone,admin_id')
+    .ignore()
+}
+
+async function getOrCreateSession(supabase: any, phone: string, adminId: string) {
+  // Look for existing session for this customer with this specific admin
   const { data: existing } = await supabase
     .from('whatsapp_sessions')
     .select('*')
     .eq('customer_phone', phone)
+    .eq('user_id', adminId)
     .gte('last_message_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
     .single()
 
   if (existing) return existing
 
-  const { data: owner } = await supabase
-    .from('flowserve_users')
-    .select('id')
-    .limit(1)
-    .single()
-
+  // Create new session for this customer with this admin
   const { data: session } = await supabase
     .from('whatsapp_sessions')
     .insert({
-      user_id: owner.id,
+      user_id: adminId,
       customer_phone: phone,
       session_data: { messages: [], context: {} },
     })
     .select()
     .single()
+
+  // Ensure mapping exists
+  await createMapping(supabase, phone, adminId)
 
   return session
 }
@@ -147,9 +211,9 @@ async function processMessage(supabase: any, message: WhatsAppMessage, session: 
     businessName: owner.business_name,
     sessionContext: sessionData.context,
   })
-  
+
   console.log('AI Intent:', intent)
-  
+
   // Handle based on intent with confidence threshold
   if (intent.confidence < 0.5) {
     // Low confidence - ask for clarification
@@ -163,23 +227,23 @@ async function processMessage(supabase: any, message: WhatsAppMessage, session: 
       sessionData,
     }
   }
-  
+
   if (intent.action === 'show_listings') {
     return await handleShowListings(supabase, owner, intent, sessionData)
   }
-  
+
   if (intent.action === 'select_item') {
     return await handleItemSelection(supabase, owner, intent, sessionData)
   }
-  
+
   if (intent.action === 'provide_date') {
     return await handleDateSelection(supabase, owner, intent, sessionData)
   }
-  
+
   if (intent.action === 'choose_payment') {
     return await handlePaymentChoice(supabase, owner, intent, sessionData)
   }
-  
+
   // Unknown intent - provide helpful options
   return {
     text: `I can help you with:\n\n${owner.business_type === 'real_estate' ? '🏠 View available properties\n💰 Purchase properties' : '🎉 View our services\n📅 Book services'}\n\nWhat would you like to do?`,
@@ -188,22 +252,20 @@ async function processMessage(supabase: any, message: WhatsAppMessage, session: 
   }
 }
 
-// Removed - now using AI service
-
 async function handleShowListings(supabase: any, owner: any, intent: any, sessionData: any) {
   const tableName = owner.business_type === 'real_estate' ? 'properties' : 'services'
-  
+
   let query = supabase
     .from(tableName)
     .select('*')
     .eq('user_id', owner.id)
-  
+
   if (tableName === 'properties') {
     query = query.is('deleted_at', null).eq('status', 'available')
   }
-  
+
   const { data: items } = await query
-  
+
   if (!items || items.length === 0) {
     return {
       text: `Sorry, we have no ${owner.business_type === 'real_estate' ? 'properties' : 'services'} available at the moment.`,
@@ -211,22 +273,22 @@ async function handleShowListings(supabase: any, owner: any, intent: any, sessio
       sessionData,
     }
   }
-  
+
   let filtered = items
   if (intent.filters?.maxPrice) {
     filtered = filtered.filter((item: any) => item.price <= intent.filters.maxPrice)
   }
   if (intent.filters?.bedrooms) {
-    filtered = filtered.filter((item: any) => 
+    filtered = filtered.filter((item: any) =>
       item.title?.toLowerCase().includes(`${intent.filters.bedrooms} bedroom`) ||
       item.description?.toLowerCase().includes(`${intent.filters.bedrooms} bedroom`)
     )
   }
-  
+
   const itemsToShow = filtered.length > 0 ? filtered : items
-  
+
   return {
-    text: filtered.length === 0 
+    text: filtered.length === 0
       ? 'No items match your criteria. Here are all available options:'
       : `Here are ${filtered.length} available ${owner.business_type === 'real_estate' ? 'properties' : 'services'}:`,
     media: itemsToShow.slice(0, 5).map((item: any, idx: number) => ({
@@ -240,7 +302,7 @@ async function handleShowListings(supabase: any, owner: any, intent: any, sessio
 
 async function handleItemSelection(supabase: any, owner: any, intent: any, sessionData: any) {
   const availableItems = sessionData.context.availableItems || []
-  
+
   if (availableItems.length === 0) {
     return {
       text: `Please first view our ${owner.business_type === 'real_estate' ? 'properties' : 'services'} by typing "show available"`,
@@ -248,9 +310,9 @@ async function handleItemSelection(supabase: any, owner: any, intent: any, sessi
       sessionData,
     }
   }
-  
+
   let selectedItem = null
-  
+
   // Try to match by number first
   if (intent.itemReference && /^\d+$/.test(intent.itemReference)) {
     const index = parseInt(intent.itemReference) - 1
@@ -263,7 +325,7 @@ async function handleItemSelection(supabase: any, owner: any, intent: any, sessi
       return itemName.includes(reference) || reference.includes(itemName)
     })
   }
-  
+
   if (!selectedItem) {
     return {
       text: 'I couldn\'t find that item. Please reply with the number (e.g., "1") or name of the item you\'re interested in.',
@@ -271,9 +333,9 @@ async function handleItemSelection(supabase: any, owner: any, intent: any, sessi
       sessionData,
     }
   }
-  
+
   const itemName = selectedItem.title || selectedItem.name
-  
+
   // For event planning, ask for date first
   if (owner.business_type === 'event_planning') {
     return {
@@ -289,7 +351,7 @@ async function handleItemSelection(supabase: any, owner: any, intent: any, sessi
       },
     }
   }
-  
+
   // For real estate, go straight to payment
   return {
     text: `Great choice! You selected:\n\n${itemName}\n₦${selectedItem.price.toLocaleString()}\n\nTo proceed, please choose a payment option:\n\n1️⃣ Paystack (Instant confirmation)\n2️⃣ Manual Payment (5 minutes - 14 hours)\n\nReply with 1 or 2`,
@@ -307,7 +369,7 @@ async function handleItemSelection(supabase: any, owner: any, intent: any, sessi
 
 async function handleDateSelection(supabase: any, owner: any, intent: any, sessionData: any) {
   const selectedItem = sessionData.context.selectedItem
-  
+
   if (!selectedItem) {
     return {
       text: 'Please first select a service.',
@@ -315,7 +377,7 @@ async function handleDateSelection(supabase: any, owner: any, intent: any, sessi
       sessionData,
     }
   }
-  
+
   if (!intent.eventDate) {
     return {
       text: 'I couldn\'t understand the date. Please provide it in a clear format like:\n\n"December 25, 2025"\n"25/12/2025"\n"2025-12-25"',
@@ -323,12 +385,12 @@ async function handleDateSelection(supabase: any, owner: any, intent: any, sessi
       sessionData,
     }
   }
-  
+
   // Check if date is in the future
   const eventDate = new Date(intent.eventDate)
   const today = new Date()
   today.setHours(0, 0, 0, 0)
-  
+
   if (eventDate < today) {
     return {
       text: 'The date you provided is in the past. Please provide a future date for your event.',
@@ -336,7 +398,7 @@ async function handleDateSelection(supabase: any, owner: any, intent: any, sessi
       sessionData,
     }
   }
-  
+
   // Check if date is already booked
   const { data: existingBookings } = await supabase
     .from('orders')
@@ -345,7 +407,7 @@ async function handleDateSelection(supabase: any, owner: any, intent: any, sessi
     .eq('item_type', 'service')
     .eq('event_date', intent.eventDate)
     .in('status', ['pending', 'confirmed', 'processing'])
-  
+
   if (existingBookings && existingBookings.length > 0) {
     return {
       text: `❌ Sorry, ${eventDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} is already booked.\n\nPlease choose another date for your event.`,
@@ -353,16 +415,16 @@ async function handleDateSelection(supabase: any, owner: any, intent: any, sessi
       sessionData,
     }
   }
-  
+
   // Date is available
   const itemName = selectedItem.title || selectedItem.name
-  const formattedDate = eventDate.toLocaleDateString('en-US', { 
+  const formattedDate = eventDate.toLocaleDateString('en-US', {
     weekday: 'long',
-    month: 'long', 
-    day: 'numeric', 
-    year: 'numeric' 
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric'
   })
-  
+
   return {
     text: `✅ Great! ${formattedDate} is available!\n\n${itemName}\n₦${selectedItem.price.toLocaleString()}\n\nTo proceed, please choose a payment option:\n\n1️⃣ Paystack (Instant confirmation)\n2️⃣ Manual Payment (5 minutes - 14 hours)\n\nReply with 1 or 2`,
     media: [],
@@ -385,9 +447,9 @@ async function handleDateSelection(supabase: any, owner: any, intent: any, sessi
 async function handlePaymentChoice(supabase: any, owner: any, intent: any, sessionData: any) {
   try {
     console.log('=== PAYMENT CHOICE HANDLER STARTED ===')
-    
+
     const selectedItem = sessionData.context.selectedItem
-    
+
     if (!selectedItem) {
       console.log('❌ No selected item')
       return {
@@ -396,15 +458,15 @@ async function handlePaymentChoice(supabase: any, owner: any, intent: any, sessi
         sessionData,
       }
     }
-    
+
     console.log('✅ Selected item:', selectedItem.title || selectedItem.name)
-    
+
     const paymentMethod = intent.paymentMethod || (intent.itemReference === '1' ? 'paystack' : 'manual')
     const itemType = owner.business_type === 'real_estate' ? 'property' : 'service'
     const itemName = selectedItem.title || selectedItem.name
-    
+
     console.log('Payment method:', paymentMethod, 'Item type:', itemType)
-    
+
     // Get or create customer
     console.log('Fetching customer for phone:', sessionData.customer_phone)
     const { data: customer, error: customerFetchError } = await supabase
@@ -413,14 +475,14 @@ async function handlePaymentChoice(supabase: any, owner: any, intent: any, sessi
       .eq('user_id', owner.id)
       .eq('phone_number', sessionData.customer_phone)
       .maybeSingle()
-    
+
     if (customerFetchError) {
       console.error('Customer fetch error:', customerFetchError)
       throw customerFetchError
     }
-    
+
     let customerId = customer?.id
-    
+
     if (!customerId) {
       console.log('Creating new customer...')
       const { data: newCustomer, error: customerCreateError } = await supabase
@@ -433,72 +495,72 @@ async function handlePaymentChoice(supabase: any, owner: any, intent: any, sessi
         })
         .select()
         .single()
-      
+
       if (customerCreateError) {
         console.error('❌ Customer creation failed:', customerCreateError)
         throw customerCreateError
       }
-      
+
       customerId = newCustomer.id
       console.log('✅ Customer created:', customerId)
     } else {
       console.log('✅ Customer found:', customerId)
     }
-    
+
     // Create order based on payment method
     if (paymentMethod === 'paystack') {
-    const orderData: any = {
-      user_id: owner.id,
-      customer_id: customerId,
-      item_type: itemType,
-      property_id: itemType === 'property' ? selectedItem.id : null,
-      service_id: itemType === 'service' ? selectedItem.id : null,
-      item_name: itemName,
-      item_description: selectedItem.description || '',
-      amount: selectedItem.price,
-      payment_method: 'card',
-      payment_status: 'unpaid',
-      status: 'pending',
-    }
-    
-    // Add event details for event planning (only if they exist)
-    if (itemType === 'service' && sessionData.context?.eventDate) {
-      orderData.event_date = sessionData.context.eventDate
-      if (sessionData.context.eventTime) orderData.event_time = sessionData.context.eventTime
-      if (sessionData.context.guestCount) orderData.guest_count = sessionData.context.guestCount
-      if (sessionData.context.eventLocation) orderData.event_location = sessionData.context.eventLocation
-    }
-    
-    console.log('Creating order:', JSON.stringify(orderData, null, 2))
-    
-    const { data: order, error: orderError } = await supabase
-      .from('orders')
-      .insert(orderData)
-      .select()
-      .single()
-    
-    if (orderError) {
-      console.error('❌ ORDER CREATION FAILED:', orderError)
-      throw orderError
-    }
-    
-    console.log('✅✅✅ ORDER CREATED:', order.id, 'Amount:', order.amount)
-    
-    const paymentUrl = `${config.app.url}/payment/create?order=${order.id}`
-    
-    return {
-      text: `Click the link below to pay with Paystack:\n\n${paymentUrl}\n\nYou'll receive instant confirmation once payment is complete!`,
-      media: [],
-      sessionData: {
-        ...sessionData,
-        context: {
-          ...sessionData.context,
-          orderId: order.id,
-          paymentMethod: 'paystack',
-          awaitingPayment: false,
+      const orderData: any = {
+        user_id: owner.id,
+        customer_id: customerId,
+        item_type: itemType,
+        property_id: itemType === 'property' ? selectedItem.id : null,
+        service_id: itemType === 'service' ? selectedItem.id : null,
+        item_name: itemName,
+        item_description: selectedItem.description || '',
+        amount: selectedItem.price,
+        payment_method: 'card',
+        payment_status: 'unpaid',
+        status: 'pending',
+      }
+
+      // Add event details for event planning (only if they exist)
+      if (itemType === 'service' && sessionData.context?.eventDate) {
+        orderData.event_date = sessionData.context.eventDate
+        if (sessionData.context.eventTime) orderData.event_time = sessionData.context.eventTime
+        if (sessionData.context.guestCount) orderData.guest_count = sessionData.context.guestCount
+        if (sessionData.context.eventLocation) orderData.event_location = sessionData.context.eventLocation
+      }
+
+      console.log('Creating order:', JSON.stringify(orderData, null, 2))
+
+      const { data: order, error: orderError } = await supabase
+        .from('orders')
+        .insert(orderData)
+        .select()
+        .single()
+
+      if (orderError) {
+        console.error('❌ ORDER CREATION FAILED:', orderError)
+        throw orderError
+      }
+
+      console.log('✅✅✅ ORDER CREATED:', order.id, 'Amount:', order.amount)
+
+      const paymentUrl = `${config.app.url}/payment/create?order=${order.id}`
+
+      return {
+        text: `Click the link below to pay with Paystack:\n\n${paymentUrl}\n\nYou'll receive instant confirmation once payment is complete!`,
+        media: [],
+        sessionData: {
+          ...sessionData,
+          context: {
+            ...sessionData.context,
+            orderId: order.id,
+            paymentMethod: 'paystack',
+            awaitingPayment: false,
+          },
         },
-      },
-    }
+      }
     } else {
       // Manual payment
       const orderData: any = {
@@ -514,7 +576,7 @@ async function handlePaymentChoice(supabase: any, owner: any, intent: any, sessi
         payment_status: 'unpaid',
         status: 'pending',
       }
-      
+
       // Add event details for event planning (only if they exist)
       if (itemType === 'service' && sessionData.context?.eventDate) {
         orderData.event_date = sessionData.context.eventDate
@@ -522,22 +584,22 @@ async function handlePaymentChoice(supabase: any, owner: any, intent: any, sessi
         if (sessionData.context.guestCount) orderData.guest_count = sessionData.context.guestCount
         if (sessionData.context.eventLocation) orderData.event_location = sessionData.context.eventLocation
       }
-      
+
       console.log('Creating manual payment order:', JSON.stringify(orderData, null, 2))
-      
+
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert(orderData)
         .select()
         .single()
-      
+
       if (orderError) {
         console.error('❌ MANUAL ORDER CREATION FAILED:', orderError)
         throw orderError
       }
-      
+
       console.log('✅✅✅ MANUAL ORDER CREATED:', order.id, 'Amount:', order.amount)
-      
+
       return {
         text: `For manual payment, please transfer ₦${selectedItem.price.toLocaleString()} to:\n\n🏦 Bank: ${owner.bank_name}\n💳 Account: ${owner.account_number}\n👤 Name: ${owner.account_name}\n\nAfter payment, our team will confirm within 5 minutes to 14 hours. Thank you!`,
         media: [],
@@ -567,15 +629,24 @@ function formatItemCaption(item: any, number: number, businessType: string) {
   const price = `₦${item.price.toLocaleString()}`
   const location = item.location ? `\n📍 ${item.location}` : ''
   const description = item.description ? `\n\n${item.description.substring(0, 100)}${item.description.length > 100 ? '...' : ''}` : ''
-  
+
   return `${number}. ${name}\n${price}${location}${description}\n\nReply "${number}" to select this ${businessType === 'real_estate' ? 'property' : 'service'}`
 }
 
-async function sendWhatsAppMessage(to: string, text: string, media: any[]) {
-  await fetch(`https://graph.facebook.com/v18.0/${config.whatsapp.phoneNumberId}/messages`, {
+async function sendPlatformMessage(to: string, text: string, media: any[] = []) {
+  // Use the PLATFORM'S WhatsApp credentials to send message
+  const phoneNumberId = config.whatsapp.phoneNumberId
+  const accessToken = config.whatsapp.token
+
+  if (!phoneNumberId || !accessToken) {
+    console.error('Platform missing WhatsApp credentials')
+    throw new Error('Platform WhatsApp not configured')
+  }
+
+  await fetch(`https://graph.facebook.com/v18.0/${phoneNumberId}/messages`, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${config.whatsapp.token}`,
+      'Authorization': `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -588,10 +659,10 @@ async function sendWhatsAppMessage(to: string, text: string, media: any[]) {
 
   for (const item of media) {
     if (item.url) {
-      await fetch(`https://graph.facebook.com/v18.0/${config.whatsapp.phoneNumberId}/messages`, {
+      await fetch(`https://graph.facebook.com/v18.0/${phoneNumberId}/messages`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${config.whatsapp.token}`,
+          'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({

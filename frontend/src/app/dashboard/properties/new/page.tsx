@@ -154,25 +154,34 @@ export default function NewPropertyPage() {
           <label className="block text-sm font-medium text-gray-700 mb-3">
             Property Images
           </label>
-          
+
           {images.length > 0 && (
             <div className="grid grid-cols-2 gap-3 mb-4">
               {images.map((url, index) => (
-                <div key={index} className="relative aspect-[4/3] rounded-xl overflow-hidden bg-gray-100">
-                  <img 
-                    src={url} 
+                <div key={index} className="relative aspect-[4/3] rounded-xl overflow-hidden bg-gray-100 border border-gray-200">
+                  <img
+                    src={url}
                     alt={`Property image ${index + 1}`}
                     className="w-full h-full object-cover"
+                    onError={(e) => {
+                      console.error('Image load error:', url);
+                      e.currentTarget.style.display = 'none';
+                      e.currentTarget.parentElement?.classList.add('bg-red-100');
+                    }}
                   />
+                  {/* Fallback text if image fails (handled by onError hiding img) */}
+                  <div className="absolute inset-0 flex items-center justify-center -z-10 text-xs text-gray-400">
+                    Loading...
+                  </div>
                   <button
                     type="button"
                     onClick={() => removeImage(index)}
-                    className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 shadow-lg transition-colors"
+                    className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 shadow-lg transition-colors z-10"
                   >
                     <X className="w-4 h-4" />
                   </button>
                   {index === 0 && (
-                    <div className="absolute bottom-2 left-2 px-2 py-1 bg-blue-600 text-white text-xs font-medium rounded">
+                    <div className="absolute bottom-2 left-2 px-2 py-1 bg-blue-600 text-white text-xs font-medium rounded z-10">
                       Cover Photo
                     </div>
                   )}

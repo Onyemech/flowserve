@@ -1,0 +1,237 @@
+✅ Your actual question:
+
+“Can ONE Meta WhatsApp API number handle ALL the admins on my PWA, so that each admin’s customers talk to MY WhatsApp number, but the bot routes each message to the correct admin?”
+
+✅ **THE ANSWER: YES — It CAN be done.
+
+And your current setup is NOT built for this.
+That is why NOTHING responds.”
+
+Let me break it down VERY SIMPLE:
+
+🟥 WHAT YOU ARE TRYING TO DO
+
+You want:
+
+ONE WhatsApp Business API number (your Meta number)
+
+to
+→ handle messages for ALL admins using your PWA
+→ use your single Meta token, your single App, your single webhook
+→ but still respond per-admin based on their business type.
+
+Basically:
+
+Customer -> Your WhatsApp API number -> Your bot -> Routes to correct admin
+
+
+This is exactly how SaaS chatbots like Respond.io, Sleekflow, Wati, etc. work.
+
+It IS possible.
+But your current code is NOT built for it, and that’s why:
+
+your webhook gets messages but does nothing
+
+messages are not being routed per admin
+
+sessions always use the same “owner”
+
+your .env credentials only match one admin
+
+Which means:
+
+👉 Your bot is working only for ONE phone number — yours.
+👉 All other admins are using your number, but your system is not routing messages correctly.
+
+🟩 HOW TO FIX THIS — THE PROPER SAAS WHATSAPP ARCHITECTURE
+
+To support multiple admins using ONE WhatsApp API number, the architecture MUST BE:
+
+⭐ 1. You have ONE Meta App + ONE WhatsApp Business Number
+
+This number belongs to YOU, the platform.
+
+.env:
+
+META_PHONE_NUMBER_ID=xxxx
+META_ACCESS_TOKEN=xxxx
+META_WABA_ID=xxxx
+META_API_URL=https://graph.facebook.com/v18.0
+
+
+These should NOT change per admin.
+
+⭐ 2. Every admin gets a unique internal identifier
+
+Example:
+
+admin.id = 1292
+admin.business_type = "real_estate"
+
+⭐ 3. Every customer is mapped to the admin like this:
+customer.phone_number -> admin.id
+
+
+Meaning:
+
+If +234810… messages
+
+System checks database
+
+Finds which admin owns this customer
+
+Runs the correct bot logic
+
+Responds back through YOUR WhatsApp number
+
+⭐ 4. Your current webhook handler must be rewritten
+
+Because right now:
+
+it always uses the first admin in database
+
+sessions are not related to admins
+
+incoming messages are not linked to any admin
+
+your AI processor cannot know which admin to reply for
+
+I can rewrite this in a clean way (very short code).
+
+⭐ 5. Admin “Connect My WhatsApp” button is WRONG
+
+Right now, your PWA Connect Button:
+
+does NOT actually register their real WhatsApp number
+
+does NOT subscribe them
+
+does NOT authenticate them
+
+does NOT map anything
+
+ONLY links to your own token
+
+This is why:
+
+❌ When their customers message them → NOTHING HAPPENS
+
+Because your bot is listening ONLY to your Meta number.
+
+🟦 THE CORRECT SOLUTION FOR YOU
+
+Let me give the correct flow as bullet points:
+
+🟦 THE CORRECT FLOW FOR MULTI-ADMIN WHATSAPP BOT (VERY SIMPLE)
+1️⃣ Customer messages your WhatsApp API number
+
+Your webhook receives:
+
+from: +2348012345678
+message: "Hi"
+
+2️⃣ You look up the “owner admin” using your DB
+SELECT admin_id FROM customer_map WHERE phone = +2348012345678;
+
+
+If not found → create new customer and map them to the admin who "invited" them or whose link they came from.
+
+3️⃣ Now the AI responds using logic for THAT admin’s business type
+
+Examples:
+
+If admin.business_type = "event_planner":
+
+Bot replies with:
+
+Booking options
+
+Event packages
+
+Availability
+
+etc.
+
+If admin.business_type = "real_estate":
+
+Bot replies with:
+
+Available properties
+
+Sends images
+
+Price
+
+etc.
+
+4️⃣ Response is ALWAYS sent through YOUR Meta Number
+
+Not the admin’s number.
+2. Your webhook handler does NOT route messages to the correct admin
+
+Since multiple admins need their own WhatsApp agent, your webhook handler must:
+
+1. Detect which phone number the message came to
+2. Fetch the owner (admin) for that phone number
+3. Process the message for ONLY that admin
+
+If your webhook currently uses the single .env credentials, then:
+
+➡ All admins are using YOUR WhatsApp number
+➡ Their customers are messaging their number, not yours
+➡ Your webhook does not receive ANY messages
+➡ So no bot response
+
+This is exactly your current scenario.
+
+❗ 3. You connected via the PWA, but you did NOT save the admin’s credentials
+
+Your “success message” only means:
+
+OAuth finished successfully
+
+It does NOT mean the webhook is working.
+
+After OAuth, you must ensure the callback saves:
+
+whatsapp_phone_number_id
+whatsapp_business_account_id
+whatsapp_access_token
+phone_display_number
+whatsapp_connected = true
+
+
+to this row:
+
+flowserve_users (admin)
+
+
+If you didn’t save it — the backend cannot link customers to admins.
+
+🟢 Now the IMPORTANT PART
+
+You said this earlier:
+
+“Can't the system use my Meta credentials for all admins?”
+
+✔ YES — That is possible
+
+You can use your single Meta App for all admins.
+
+Each admin will simply:
+
+Connect THEIR WhatsApp Business number
+
+Your app receives THEIR phone_number_id
+
+Your app stores THEIR access_token
+
+Your webhook processes THEIR messages
+
+Your agent replies using THEIR phone_number_id
+
+This is exactly how CRM apps like Wati, Zoko, Respond.io work.
+
+So you do NOT need separate Meta apps.
+
+You just need EACH admin to provide their OWN WhatsApp access token and phone number ID through OAuth.

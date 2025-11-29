@@ -7,9 +7,49 @@ node_modules/
 coverage/
 
 # Next.js
+############################
+# ENVIRONMENT VARIABLES
+############################
+.env
+.env.*
+*.env
+*.env.local
+*.env.development
+*.env.production
+*.env.test
+n8n
+
+# Supabase environment
+supabase/.env
+supabase/.env.local
+supabase/.temp
+
+############################
+# FRONTEND / BUILD FILES
+############################
 frontend/.next/
 frontend/out/
 frontend/build/
+frontend/dist/
+frontend/node_modules/
+frontend/.DS_Store
+
+############################
+# BACKEND / FUNCTIONS
+############################
+functions/node_modules/
+functions/dist/
+functions/build/
+
+############################
+# ROOT BUILD & DIST
+############################
+.next/
+out/
+build/
+dist/
+dist-ssr/
+
 
 # Production
 build/
@@ -31,10 +71,7 @@ pnpm-debug.log*
 lerna-debug.log*
 
 # Local env files
-.env
-.env*.local
-frontend/.env.local
-backend/.env
+
 
 # Vercel
 .vercel

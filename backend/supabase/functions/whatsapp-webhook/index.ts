@@ -14,15 +14,15 @@ serve(async (req) => {
   }
 
   const url = new URL(req.url)
-  
+
   // Handle GET request for webhook verification (Meta doesn't send auth headers)
   if (req.method === 'GET') {
     const mode = url.searchParams.get('hub.mode')
     const token = url.searchParams.get('hub.verify_token')
     const challenge = url.searchParams.get('hub.challenge')
-    
+
     console.log('Webhook verification request:', { mode, token, challenge })
-    
+
     // Check if mode and token are correct
     if (mode === 'subscribe' && token === config.whatsapp.verifyToken) {
       console.log('Webhook verified successfully')
@@ -31,42 +31,48 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'text/plain' },
       })
     }
-    
+
     console.error('Webhook verification failed', { mode, token, expected: config.whatsapp.verifyToken })
-    return new Response('Forbidden', { 
+    return new Response('Forbidden', {
       status: 403,
       headers: corsHeaders,
     })
   }
-  
+
   // Handle POST request for incoming messages
   if (req.method === 'POST') {
     try {
       const body = await req.json()
       console.log('Incoming webhook:', JSON.stringify(body, null, 2))
-      
+
+      // Extract phone number ID from metadata to identify which admin this message is for
+      const phoneNumberId = body.entry?.[0]?.changes?.[0]?.value?.metadata?.phone_number_id
+      console.log('Message received for phone_number_id:', phoneNumberId)
+
       // Process webhook data
       if (body.object === 'whatsapp_business_account') {
         for (const entry of body.entry || []) {
           for (const change of entry.changes || []) {
             if (change.field === 'messages') {
               const value = change.value
-              
+              const phoneNumberId = value.metadata?.phone_number_id
+
               // Handle incoming messages
               if (value.messages) {
                 for (const message of value.messages) {
                   console.log('New message:', {
                     from: message.from,
                     type: message.type,
+                    phoneNumberId: phoneNumberId,
                     timestamp: message.timestamp,
                   })
-                  
-                  // TODO: Process message with AI agent
-                  // This will be handled by the whatsapp-agent function
+
+                  // Process message with AI agent
+                  // The agent will handle routing based on the customer's phone number
                   await processIncomingMessage(message, value.metadata)
                 }
               }
-              
+
               // Handle message status updates
               if (value.statuses) {
                 for (const status of value.statuses) {
@@ -75,7 +81,7 @@ serve(async (req) => {
                     status: status.status,
                     timestamp: status.timestamp,
                   })
-                  
+
                   // TODO: Update message status in database
                   await updateMessageStatus(status)
                 }
@@ -84,7 +90,7 @@ serve(async (req) => {
           }
         }
       }
-      
+
       return new Response(JSON.stringify({ success: true }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -97,8 +103,8 @@ serve(async (req) => {
       })
     }
   }
-  
-  return new Response('Method not allowed', { 
+
+  return new Response('Method not allowed', {
     status: 405,
     headers: corsHeaders,
   })
@@ -110,10 +116,10 @@ async function processIncomingMessage(message: any, metadata: any) {
     const from = message.from
     const messageType = message.type
     const timestamp = message.timestamp
-    
+
     let messageText = ''
     let mediaUrl = ''
-    
+
     // Extract message content based on type
     switch (messageType) {
       case 'text':
@@ -138,15 +144,15 @@ async function processIncomingMessage(message: any, metadata: any) {
         console.log('Unsupported message type:', messageType)
         return
     }
-    
+
     console.log('Processing message:', {
       from,
       type: messageType,
       text: messageText,
       media: mediaUrl,
     })
-    
-    // Call AI agent to process and respond
+
+    // Call AI agent to process and respond (includes phoneNumberId for routing)
     const agentResponse = await fetch(
       `${Deno.env.get('SUPABASE_URL')}/functions/v1/whatsapp-agent`,
       {
@@ -167,11 +173,11 @@ async function processIncomingMessage(message: any, metadata: any) {
         }),
       }
     )
-    
+
     if (!agentResponse.ok) {
       throw new Error(`Agent response failed: ${agentResponse.statusText}`)
     }
-    
+
     console.log('Message processed by agent successfully')
   } catch (error) {
     console.error('Error processing message:', error)
@@ -185,7 +191,7 @@ async function updateMessageStatus(status: any) {
       status: status.status,
       timestamp: status.timestamp,
     })
-    
+
     // TODO: Update message status in database
     // This will track delivery, read, sent, failed statuses
   } catch (error) {

@@ -188,12 +188,25 @@ export default function NewServicePage() {
           {images.length > 0 && (
             <div className="grid grid-cols-3 gap-2 mt-4">
               {images.map((url, index) => (
-                <div key={index} className="relative">
-                  <img src={url} alt="" className="w-full h-24 object-cover rounded" />
+                <div key={index} className="relative bg-gray-100 rounded border border-gray-200">
+                  <img
+                    src={url}
+                    alt={`Service image ${index + 1}`}
+                    className="w-full h-24 object-cover rounded"
+                    onError={(e) => {
+                      console.error('Image load error:', url);
+                      e.currentTarget.style.display = 'none';
+                      e.currentTarget.parentElement?.classList.add('bg-red-100');
+                    }}
+                  />
+                  {/* Fallback text */}
+                  <div className="absolute inset-0 flex items-center justify-center -z-10 text-xs text-gray-400">
+                    Loading...
+                  </div>
                   <button
                     type="button"
                     onClick={() => removeImage(index)}
-                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1"
+                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 shadow-sm z-10"
                   >
                     <X size={16} />
                   </button>
