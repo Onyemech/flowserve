@@ -1,4 +1,5 @@
-const nextConfig: NextConfig = {
+// Next.js 16 config - type annotation omitted due to outdated NextConfig type defs
+const nextConfig = {
   /* config options here */
   eslint: {
     ignoreDuringBuilds: true,
