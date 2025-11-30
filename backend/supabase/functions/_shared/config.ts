@@ -14,12 +14,12 @@ export const config = {
     anonKey: Deno.env.get('SUPABASE_ANON_KEY') || '',
   },
   
-  // WhatsApp
+  // WhatsApp - Single platform credentials for all admins
   whatsapp: {
-    token: Deno.env.get('WHATSAPP_ACCESS_TOKEN') || '0b08b5bf4c69ce5e6adaf9c8988a73d6',
-    phoneNumberId: Deno.env.get('WHATSAPP_PHONE_NUMBER_ID') || '1572646177519931',
+    token: Deno.env.get('WHATSAPP_ACCESS_TOKEN') || '',
+    phoneNumberId: Deno.env.get('WHATSAPP_PHONE_NUMBER_ID') || '',
     verifyToken: Deno.env.get('WHATSAPP_WEBHOOK_VERIFY_TOKEN') || 'flowserve_webhook_verify_2025',
-    businessAccountId: Deno.env.get('WHATSAPP_BUSINESS_ACCOUNT_ID') || '1572646177519931',
+    businessAccountId: Deno.env.get('WHATSAPP_BUSINESS_ACCOUNT_ID') || '',
     apiVersion: 'v21.0',
     apiUrl: 'https://graph.facebook.com/v21.0',
   },

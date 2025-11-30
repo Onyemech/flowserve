@@ -103,7 +103,7 @@ export default function RegisterPage() {
       <div className="w-full max-w-md p-4 sm:p-6 mt-4">
         <div className="flex justify-center pt-8 pb-8">
           <Link href="/">
-            <Image src="/icon-512x512.png" alt="FlowServe AI" width={120} height={120} className="w-auto h-24" priority />
+            <Image src="/logo.svg" alt="FlowServe AI" width={120} height={120} className="w-auto h-24" priority />
           </Link>
         </div>
         <h1 className="text-gray-900 dark:text-white tracking-tight text-3xl font-bold leading-tight text-center pb-2">Create Your Admin Account</h1>

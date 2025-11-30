@@ -45,10 +45,6 @@ serve(async (req) => {
       const body = await req.json()
       console.log('Incoming webhook:', JSON.stringify(body, null, 2))
 
-      // Extract phone number ID from metadata to identify which admin this message is for
-      const phoneNumberId = body.entry?.[0]?.changes?.[0]?.value?.metadata?.phone_number_id
-      console.log('Message received for phone_number_id:', phoneNumberId)
-
       // Process webhook data
       if (body.object === 'whatsapp_business_account') {
         for (const entry of body.entry || []) {

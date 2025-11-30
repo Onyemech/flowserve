@@ -72,7 +72,7 @@ export default function LoginPage() {
         <div className="w-full max-w-sm mx-auto">
           <div className="flex justify-center pb-6 pt-8">
             <Link href="/">
-              <Image src="/icon-512x512.png" alt="FlowServe AI" width={120} height={120} className="w-auto h-24" priority />
+              <Image src="/logo.svg" alt="FlowServe AI" width={120} height={120} className="w-auto h-24" priority />
             </Link>
           </div>
           <h1 className="text-3xl font-bold leading-tight text-center pb-8">Welcome Back, Admin!</h1>

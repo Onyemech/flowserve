@@ -3,11 +3,13 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Upload, X, ArrowLeft } from 'lucide-react';
+import BookedDatesManager from '@/components/dashboard/BookedDatesManager';
 
 export default function NewServicePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [images, setImages] = useState<string[]>([]);
+  const [bookedDates, setBookedDates] = useState<string[]>([]);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -72,6 +74,7 @@ export default function NewServicePage() {
           duration_hours: parseInt(formData.duration_hours),
           category: formData.category,
           images,
+          booked_dates: bookedDates,
           status: 'active',
         }),
       });
@@ -213,6 +216,13 @@ export default function NewServicePage() {
               ))}
             </div>
           )}
+        </div>
+
+        <div className="bg-white rounded-2xl shadow-sm p-4">
+          <BookedDatesManager 
+            bookedDates={bookedDates}
+            onChange={setBookedDates}
+          />
         </div>
 
         <div className="flex gap-4">
