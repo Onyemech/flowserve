@@ -3,6 +3,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { createAIProvider } from '../_shared/ai-service.ts'
 import { config, validateConfig } from '../_shared/config.ts'
 import { determineTargetAdmin } from './routing.ts'
+import { generateInvoiceNumber, generateInvoiceHTML, generateInvoiceText, type InvoiceData } from '../_shared/invoice-generator.ts'
+import { sendEmail } from '../_shared/email-service.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -518,16 +520,60 @@ async function handlePaymentChoice(supabase: any, owner: any, intent: any, sessi
 
       console.log('✅✅✅ ORDER CREATED:', order.id, 'Amount:', order.amount)
 
+      // Generate invoice
+      const invoiceNumber = generateInvoiceNumber(order.id)
+      const invoiceData: InvoiceData = {
+        invoiceNumber,
+        orderDate: order.created_at,
+        dueDate: order.created_at,
+        businessName: owner.business_name,
+        businessEmail: owner.email,
+        businessPhone: owner.whatsapp_display_phone_number || '',
+        customerName: sessionData.customer_name || 'WhatsApp Customer',
+        customerPhone: sessionData.customer_phone,
+        customerEmail: customer?.email,
+        items: [{
+          name: itemName,
+          description: selectedItem.description || '',
+          quantity: 1,
+          unitPrice: selectedItem.price,
+          total: selectedItem.price,
+        }],
+        subtotal: selectedItem.price,
+        tax: 0,
+        total: selectedItem.price,
+        paymentMethod: 'card',
+        status: 'pending',
+        notes: itemType === 'service' && sessionData.context?.eventDate 
+          ? `Event Date: ${new Date(sessionData.context.eventDate).toLocaleDateString()}`
+          : undefined,
+      }
+
+      const invoiceHTML = generateInvoiceHTML(invoiceData)
+      const invoiceText = generateInvoiceText(invoiceData)
+
+      // Send invoice via email if customer has email
+      if (customer?.email) {
+        await sendEmail({
+          to: customer.email,
+          subject: `Invoice ${invoiceNumber} - ${owner.business_name}`,
+          html: invoiceHTML,
+          text: invoiceText,
+        })
+        console.log('📧 Invoice sent to email:', customer.email)
+      }
+
       const paymentUrl = `${config.app.url}/payment/create?order=${order.id}`
 
       return {
-        text: `Click the link below to pay with Paystack:\n\n${paymentUrl}\n\nYou'll receive instant confirmation once payment is complete!`,
+        text: `📄 *Invoice ${invoiceNumber}*\n\n${itemName}\n₦${selectedItem.price.toLocaleString()}\n\n💳 Click to pay with Paystack:\n${paymentUrl}\n\n${customer?.email ? '✅ Invoice sent to your email' : ''}`,
         media: [],
         sessionData: {
           ...sessionData,
           context: {
             ...sessionData.context,
             orderId: order.id,
+            invoiceNumber,
             paymentMethod: 'paystack',
             awaitingPayment: false,
           },
@@ -572,14 +618,58 @@ async function handlePaymentChoice(supabase: any, owner: any, intent: any, sessi
 
       console.log('✅✅✅ MANUAL ORDER CREATED:', order.id, 'Amount:', order.amount)
 
+      // Generate invoice
+      const invoiceNumber = generateInvoiceNumber(order.id)
+      const invoiceData: InvoiceData = {
+        invoiceNumber,
+        orderDate: order.created_at,
+        dueDate: order.created_at,
+        businessName: owner.business_name,
+        businessEmail: owner.email,
+        businessPhone: owner.whatsapp_display_phone_number || '',
+        customerName: sessionData.customer_name || 'WhatsApp Customer',
+        customerPhone: sessionData.customer_phone,
+        customerEmail: customer?.email,
+        items: [{
+          name: itemName,
+          description: selectedItem.description || '',
+          quantity: 1,
+          unitPrice: selectedItem.price,
+          total: selectedItem.price,
+        }],
+        subtotal: selectedItem.price,
+        tax: 0,
+        total: selectedItem.price,
+        paymentMethod: 'bank_transfer',
+        status: 'pending',
+        notes: itemType === 'service' && sessionData.context?.eventDate 
+          ? `Event Date: ${new Date(sessionData.context.eventDate).toLocaleDateString()}\n\nBank: ${owner.bank_name}\nAccount: ${owner.account_number}\nName: ${owner.account_name}`
+          : `Bank: ${owner.bank_name}\nAccount: ${owner.account_number}\nName: ${owner.account_name}`,
+      }
+
+      const invoiceHTML = generateInvoiceHTML(invoiceData)
+      const invoiceText = generateInvoiceText(invoiceData)
+
+      // Send invoice via email if customer has email
+      if (customer?.email) {
+        await sendEmail({
+          to: customer.email,
+          subject: `Invoice ${invoiceNumber} - ${owner.business_name}`,
+          html: invoiceHTML,
+          text: invoiceText,
+        })
+        console.log('📧 Invoice sent to email:', customer.email)
+      }
+
       return {
-        text: `For manual payment, please transfer ₦${selectedItem.price.toLocaleString()} to:\n\n🏦 Bank: ${owner.bank_name}\n💳 Account: ${owner.account_number}\n👤 Name: ${owner.account_name}\n\nAfter payment, our team will confirm within 5 minutes to 14 hours. Thank you!`,
+        text: `📄 *Invoice ${invoiceNumber}*\n\n${itemName}\n₦${selectedItem.price.toLocaleString()}\n\n💰 Transfer to:\n🏦 Bank: ${owner.bank_name}\n💳 Account: ${owner.account_number}\n👤 Name: ${owner.account_name}\n\n${customer?.email ? '✅ Invoice sent to your email\n\n' : ''}We'll confirm within 5 minutes to 14 hours. Thank you!`,
         media: [],
         sessionData: {
           ...sessionData,
           context: {
             ...sessionData.context,
             orderId: order.id,
+            invoiceNumber,
             paymentMethod: 'manual',
             awaitingPayment: false,
           },
