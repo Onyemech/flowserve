@@ -1,5 +1,6 @@
 // FlowServe AI Service Worker - Network First Strategy
-const CACHE_NAME = 'flowserve-v2' // Increment version to force update
+const CACHE_VERSION = '3.0.0' // Increment this to force update
+const CACHE_NAME = `flowserve-v${CACHE_VERSION}`
 const OFFLINE_URL = '/offline.html'
 
 const STATIC_ASSETS = [
@@ -12,26 +13,32 @@ const STATIC_ASSETS = [
 
 // Install event - cache static assets
 self.addEventListener('install', (event) => {
+  console.log('[SW] Installing version:', CACHE_VERSION)
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(STATIC_ASSETS)
     })
   )
-  self.skipWaiting() // Force activate immediately
+  // DON'T skip waiting - let user decide when to update
 })
 
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
+  console.log('[SW] Activating version:', CACHE_VERSION)
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames
           .filter((name) => name !== CACHE_NAME)
-          .map((name) => caches.delete(name))
+          .map((name) => {
+            console.log('[SW] Deleting old cache:', name)
+            return caches.delete(name)
+          })
       )
+    }).then(() => {
+      return self.clients.claim() // Take control of all pages
     })
   )
-  self.clients.claim() // Take control immediately
 })
 
 // Fetch event - NETWORK FIRST, fallback to cache
@@ -89,9 +96,14 @@ self.addEventListener('fetch', (event) => {
   )
 })
 
-// Message event - handle skip waiting
+// Message event - handle skip waiting and version check
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
+    console.log('[SW] Skipping waiting, activating new version')
     self.skipWaiting()
+  }
+  
+  if (event.data && event.data.type === 'GET_VERSION') {
+    event.ports[0].postMessage({ version: CACHE_VERSION })
   }
 })

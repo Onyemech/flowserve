@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { ToastProvider } from "@/components/ui/Toast";
 import { PWAInstaller } from "@/components/PWAInstaller";
 import { PWAUpdateToast } from "@/components/PWAUpdateToast";
+import NetworkStatus from "@/components/NetworkStatus";
 import NextTopLoader from 'nextjs-toploader';
 import "./globals.css";
 
@@ -99,6 +100,7 @@ export default function RootLayout({
           speed={200}
           shadow="0 0 10px #2563eb,0 0 5px #2563eb"
         />
+        <NetworkStatus />
         <PWAInstaller />
         <PWAUpdateToast />
         <ToastProvider>{children}</ToastProvider>

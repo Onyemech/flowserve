@@ -14,8 +14,6 @@ validateConfig([
   'ai.apiKey',
   'supabase.url',
   'supabase.serviceRoleKey',
-  'whatsapp.token',
-  'whatsapp.phoneNumberId',
 ])
 
 // Initialize AI provider
@@ -35,7 +33,6 @@ serve(async (req) => {
   try {
     const body = await req.json()
     console.log('=== INCOMING MESSAGE ===')
-    console.log(JSON.stringify(body, null, 2))
     
     const message = extractMessage(body)
     if (!message) {
@@ -45,130 +42,55 @@ serve(async (req) => {
       })
     }
 
-    console.log('Message from:', message.from, 'Text:', message.text)
+    // Extract phone_number_id to identify which admin's WhatsApp received this message
+    const phoneNumberId = body.entry?.[0]?.changes?.[0]?.value?.metadata?.phone_number_id
+    console.log('📱 Message from:', message.from, 'to phone_number_id:', phoneNumberId)
 
     const supabase = createClient(
       config.supabase.url,
       config.supabase.serviceRoleKey
     )
 
-    // ROUTING LOGIC - Determine which admin this customer should talk to
-    const routing = await determineTargetAdmin(supabase, message.from, message.text)
-    console.log('Routing decision:', routing)
+    // Find the admin who owns this WhatsApp phone number
+    const { data: owner, error: ownerError } = await supabase
+      .from('flowserve_users')
+      .select('*')
+      .eq('whatsapp_phone_number_id', phoneNumberId)
+      .eq('whatsapp_connected', true)
+      .single()
 
-    if (routing.action === 'ask_referral') {
-      // New customer - try to find business by name in their message
-      console.log('New customer, searching for business name in message:', message.text)
-      
-      const { data: businesses } = await supabase
-        .from('flowserve_users')
-        .select('*')
-        .ilike('business_name', `%${message.text.trim()}%`)
-        .limit(5)
-
-      if (businesses && businesses.length === 1) {
-        // Found exact match - create mapping and route
-        console.log('Found business match:', businesses[0].business_name)
-        await createMapping(supabase, message.from, businesses[0].id)
-        
-        const session = await getOrCreateSession(supabase, message.from, businesses[0].id)
-        const response = await processMessage(supabase, message, session, businesses[0])
-        await sendPlatformMessage(message.from, response.text, response.media)
-        
-        await supabase
-          .from('whatsapp_sessions')
-          .update({
-            session_data: response.sessionData,
-            last_message_at: new Date().toISOString(),
-          })
-          .eq('id', session.id)
-        
-        return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
-      }
-
-      if (businesses && businesses.length > 1) {
-        // Multiple matches - ask customer to select
-        const options = businesses.map((b, i) => `${i + 1}. ${b.business_name}`).join('\n')
-        console.log('Multiple businesses found, asking customer to select')
-        await sendPlatformMessage(message.from, `I found multiple businesses:\n\n${options}\n\nReply with the number of the business you want to connect with.`)
-        return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
-      }
-
-      // No match found - ask for business name
-      console.log('No business found, asking for business name')
-      await sendPlatformMessage(message.from, `Welcome to FlowServe! 🚀\n\nWhich business would you like to connect with?\n\nPlease type the business name.`)
-      return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    if (ownerError || !owner) {
+      console.error('❌ No admin found for phone_number_id:', phoneNumberId)
+      return new Response(JSON.stringify({ 
+        error: 'WhatsApp number not connected to any admin',
+        phoneNumberId 
+      }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
     }
 
-    if (routing.action === 'ask_selection') {
-      // Customer has multiple admins - check if they're selecting one by number
-      const selectionIndex = parseInt(message.text.trim()) - 1
-      
-      if (!isNaN(selectionIndex) && routing.admins && routing.admins[selectionIndex]) {
-        const selectedAdmin = routing.admins[selectionIndex]
-        console.log('Customer selected admin:', selectedAdmin.business_name)
-        
-        const session = await getOrCreateSession(supabase, message.from, selectedAdmin.id)
-        const response = await processMessage(supabase, message, session, selectedAdmin)
-        await sendPlatformMessage(message.from, response.text, response.media)
-        
-        await supabase
-          .from('whatsapp_sessions')
-          .update({
-            session_data: response.sessionData,
-            last_message_at: new Date().toISOString(),
-          })
-          .eq('id', session.id)
-        
-        return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
-      }
+    console.log('✅ Message routed to admin:', owner.business_name, owner.id)
 
-      // Invalid selection - ask again
-      const options = routing.admins?.map((a, i) => `${i + 1}. ${a.business_name}`).join('\n')
-      console.log('Invalid selection, asking customer to select again')
-      await sendPlatformMessage(message.from, `You have visited multiple businesses. Who would you like to talk to?\n\n${options}\n\nReply with the number.`)
-      return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
-    }
+    // Get or create session for this customer with this admin
+    const session = await getOrCreateSession(supabase, message.from, owner.id)
+    
+    // Process message with AI
+    const response = await processMessage(supabase, message, session, owner)
 
-    if (routing.action === 'route' && routing.adminId) {
-      // We know which admin - fetch their details
-      const { data: owner, error: ownerError } = await supabase
-        .from('flowserve_users')
-        .select('*')
-        .eq('id', routing.adminId)
-        .single()
+    // Send response using THIS ADMIN'S WhatsApp credentials
+    await sendAdminMessage(message.from, response.text, owner, response.media)
 
-      if (ownerError || !owner) {
-        console.error('Admin not found:', routing.adminId, ownerError)
-        await sendPlatformMessage(message.from, 'Sorry, there was an error connecting you to the business. Please try again.')
-        return new Response(JSON.stringify({ error: 'Admin not found' }), {
-          status: 404,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        })
-      }
+    // Update session
+    await supabase
+      .from('whatsapp_sessions')
+      .update({
+        session_data: response.sessionData,
+        last_message_at: new Date().toISOString(),
+      })
+      .eq('id', session.id)
 
-      console.log('Routing to admin:', owner.business_name, owner.id)
-
-      // Get or create session for this customer with this admin
-      const session = await getOrCreateSession(supabase, message.from, owner.id)
-      
-      // Process message with AI
-      const response = await processMessage(supabase, message, session, owner)
-
-      // Send response using platform credentials
-      await sendPlatformMessage(message.from, response.text, response.media)
-
-      // Update session
-      await supabase
-        .from('whatsapp_sessions')
-        .update({
-          session_data: response.sessionData,
-          last_message_at: new Date().toISOString(),
-        })
-        .eq('id', session.id)
-
-      console.log('Message processed successfully')
-    }
+    console.log('✅ Message processed successfully')
 
     return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -683,17 +605,17 @@ function formatItemCaption(item: any, number: number, businessType: string) {
   return `${number}. ${name}\n${price}${location}${description}\n\nReply "${number}" to select this ${businessType === 'real_estate' ? 'property' : 'service'}`
 }
 
-async function sendPlatformMessage(to: string, text: string, media: any[] = []) {
-  // Use the PLATFORM'S centralized WhatsApp credentials
-  const phoneNumberId = config.whatsapp.phoneNumberId
-  const accessToken = config.whatsapp.token
+async function sendAdminMessage(to: string, text: string, owner: any, media: any[] = []) {
+  // Use THIS ADMIN'S WhatsApp credentials
+  const phoneNumberId = owner.whatsapp_phone_number_id
+  const accessToken = owner.whatsapp_access_token
 
   if (!phoneNumberId || !accessToken) {
-    console.error('Platform WhatsApp credentials not configured')
-    throw new Error('Platform WhatsApp not configured')
+    console.error('❌ Admin WhatsApp not connected:', owner.business_name)
+    throw new Error(`Admin ${owner.business_name} has not connected WhatsApp`)
   }
 
-  console.log('Sending message to:', to)
+  console.log('📤 Sending message from', owner.business_name, 'to:', to)
 
   const textResponse = await fetch(`https://graph.facebook.com/v18.0/${phoneNumberId}/messages`, {
     method: 'POST',
@@ -711,11 +633,11 @@ async function sendPlatformMessage(to: string, text: string, media: any[] = []) 
 
   if (!textResponse.ok) {
     const error = await textResponse.text()
-    console.error('Failed to send text message:', error)
+    console.error('❌ Failed to send message:', error)
     throw new Error(`WhatsApp API error: ${error}`)
   }
 
-  console.log('Text message sent successfully')
+  console.log('✅ Message sent successfully')
 
   for (const item of media) {
     if (item.url) {
@@ -738,9 +660,9 @@ async function sendPlatformMessage(to: string, text: string, media: any[] = []) 
 
       if (!mediaResponse.ok) {
         const error = await mediaResponse.text()
-        console.error('Failed to send media:', error)
+        console.error('❌ Failed to send media:', error)
       } else {
-        console.log('Media sent successfully')
+        console.log('✅ Media sent successfully')
       }
     }
   }
