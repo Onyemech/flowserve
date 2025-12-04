@@ -72,8 +72,10 @@ function WhatsAppConnectContent() {
     const redirectUri = encodeURIComponent(`${window.location.origin}/dashboard/whatsapp-connect`)
     const state = user?.id || 'unknown'
     
-    const fbLoginUrl = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&state=${state}&scope=whatsapp_business_management,whatsapp_business_messaging&response_type=code`
+    // Use Facebook Login with proper scopes
+    const fbLoginUrl = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&state=${state}&scope=email,public_profile,whatsapp_business_management,whatsapp_business_messaging&response_type=code`
     
+    console.log('Redirecting to:', fbLoginUrl)
     window.location.href = fbLoginUrl
   }
 

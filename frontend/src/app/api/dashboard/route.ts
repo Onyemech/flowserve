@@ -1,67 +1,124 @@
-import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
+import { cookies } from 'next/headers'
 
-export async function GET(request: Request) {
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+
+export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    // Get user from session
+    const cookieStore = await cookies()
+    const accessToken = cookieStore.get('access_token')?.value
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!accessToken) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get user profile
-    const { data: profile } = await supabase
+    const supabase = createClient(supabaseUrl, supabaseServiceKey)
+    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken)
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
+    }
+
+    // Get user details
+    const { data: userData, error: userError } = await supabase
       .from('flowserve_users')
       .select('*')
       .eq('id', user.id)
-      .single();
+      .single()
 
-    // Get orders
-    const { data: orders } = await supabase
-      .from('orders')
-      .select('*')
-      .eq('user_id', user.id);
+    if (userError || !userData) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
 
+    const businessType = userData.business_type
+
+    // Get real metrics from database
+    const [ordersResult, customersResult, leadsResult] = await Promise.all([
+      // Get orders
+      supabase
+        .from('orders')
+        .select('amount, status, payment_status, created_at')
+        .eq('user_id', user.id),
+      
+      // Get customers
+      supabase
+        .from('customers')
+        .select('id, created_at')
+        .eq('user_id', user.id),
+      
+      // Get leads based on business type
+      businessType === 'real_estate'
+        ? supabase
+            .from('real_estate_leads')
+            .select('id, status, created_at')
+            .eq('user_id', user.id)
+        : supabase
+            .from('event_planning_leads')
+            .select('id, status, created_at')
+            .eq('user_id', user.id)
+    ])
+
+    const orders = ordersResult.data || []
+    const customers = customersResult.data || []
+    const leads = leadsResult.data || []
+
+    // Calculate metrics
     const totalRevenue = orders
-      ?.filter(o => o.payment_status === 'completed')
-      .reduce((sum, o) => sum + parseFloat(o.amount || '0'), 0) || 0;
+      .filter(o => o.payment_status === 'paid')
+      .reduce((sum, o) => sum + Number(o.amount), 0)
 
-    const totalOrders = orders?.length || 0;
-    const pendingOrders = orders?.filter(o => o.payment_status === 'pending').length || 0;
+    const totalSales = orders.filter(o => o.payment_status === 'paid').length
 
-    // Get unique customers
-    const uniqueCustomers = new Set(orders?.map(o => o.customer_phone)).size;
+    const pendingOrders = orders.filter(o => 
+      o.status === 'pending' || o.payment_status === 'unpaid'
+    ).length
 
-    // Get active listings
-    const tableName = profile?.business_type === 'real_estate' ? 'properties' : 'services';
-    const { count: activeListings } = await supabase
-      .from(tableName)
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .is('deleted_at', null);
+    const totalLeads = leads.length
+
+    const closedLeads = leads.filter(l => 
+      l.status === 'closed' || l.status === 'booked' || l.status === 'completed'
+    ).length
+
+    const conversionRate = totalLeads > 0 
+      ? Math.round((closedLeads / totalLeads) * 100) 
+      : 0
+
+    // Get recent activity (last 10 orders)
+    const recentActivity = orders
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, 10)
+      .map(order => ({
+        id: order.id,
+        type: 'order',
+        status: order.status,
+        amount: order.amount,
+        createdAt: order.created_at,
+      }))
 
     return NextResponse.json({
-      businessType: profile?.business_type,
+      businessType,
       metrics: {
-        totalSales: totalOrders,
-        totalLeads: uniqueCustomers,
-        conversionRate: totalOrders > 0 ? (totalOrders / uniqueCustomers) * 100 : 0,
+        totalSales,
+        totalLeads,
+        conversionRate,
         revenue: totalRevenue,
-        activeCustomers: uniqueCustomers,
+        activeCustomers: customers.length,
         pendingOrders,
       },
-      recentActivity: [],
+      recentActivity,
       user: {
-        fullName: profile?.full_name || 'User',
-        businessName: profile?.business_name || 'My Business',
+        fullName: userData.full_name || 'User',
+        businessName: userData.business_name || 'My Business',
+        whatsappConnected: userData.whatsapp_connected || false,
       },
-    });
+    })
   } catch (error: any) {
-    console.error('Error fetching dashboard data:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to fetch dashboard data' },
-      { status: 500 }
-    );
+    console.error('Dashboard API error:', error)
+    return NextResponse.json({ 
+      error: error.message || 'Internal server error' 
+    }, { status: 500 })
   }
 }
