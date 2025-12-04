@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
       // Get orders
       supabase
         .from('orders')
-        .select('amount, status, payment_status, created_at')
+        .select('id, amount, status, payment_status, created_at')
         .eq('user_id', user.id),
       
       // Get customers
