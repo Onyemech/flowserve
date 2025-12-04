@@ -107,3 +107,57 @@ self.addEventListener('message', (event) => {
     event.ports[0].postMessage({ version: CACHE_VERSION })
   }
 })
+
+// Push notification event
+self.addEventListener('push', (event) => {
+  console.log('[SW] Push notification received')
+  
+  if (!event.data) return
+
+  try {
+    const data = event.data.json()
+    const title = data.title || 'FlowServe AI'
+    const options = {
+      body: data.body || '',
+      icon: '/icon-192x192.svg',
+      badge: '/icon-72x72.svg',
+      data: {
+        url: data.action_url || '/dashboard/notifications',
+        notificationId: data.id,
+      },
+      tag: data.id || 'notification',
+      requireInteraction: false,
+      vibrate: [200, 100, 200],
+    }
+
+    event.waitUntil(
+      self.registration.showNotification(title, options)
+    )
+  } catch (error) {
+    console.error('[SW] Error showing notification:', error)
+  }
+})
+
+// Notification click event - navigate to action URL
+self.addEventListener('notificationclick', (event) => {
+  console.log('[SW] Notification clicked')
+  
+  event.notification.close()
+
+  const urlToOpen = event.notification.data?.url || '/dashboard/notifications'
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      // Check if there's already a window open
+      for (const client of clientList) {
+        if (client.url.includes(urlToOpen) && 'focus' in client) {
+          return client.focus()
+        }
+      }
+      // If no window is open, open a new one
+      if (clients.openWindow) {
+        return clients.openWindow(urlToOpen)
+      }
+    })
+  )
+})
