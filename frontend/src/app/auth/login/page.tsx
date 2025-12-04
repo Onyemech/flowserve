@@ -39,6 +39,10 @@ export default function LoginPage() {
       if (!data.session) throw new Error('No session created')
       
       showToast('success', 'Login successful!')
+      
+      // Small delay to ensure cookies are set
+      await new Promise(resolve => setTimeout(resolve, 100))
+      
       // Force full page reload to ensure session is properly set
       window.location.href = '/dashboard'
     } catch (error: any) {

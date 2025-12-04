@@ -6,8 +6,12 @@ import { RefreshCw, X } from 'lucide-react';
 export function PWAUpdateToast() {
     const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
     const [showUpdate, setShowUpdate] = useState(false);
+    const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
+        // Mark as mounted to avoid hydration issues
+        setMounted(true);
+        
         if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
             return;
         }
@@ -64,6 +68,9 @@ export function PWAUpdateToast() {
         setShowUpdate(false);
     };
 
+    // Don't render until mounted to avoid hydration mismatch
+    if (!mounted) return null;
+    
     if (!showUpdate) return null;
 
     return (

@@ -5,9 +5,13 @@ import { useEffect, useState } from 'react'
 export default function NetworkStatus() {
   const [isOnline, setIsOnline] = useState(true)
   const [showOffline, setShowOffline] = useState(false)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    // Check initial status
+    // Mark component as mounted
+    setMounted(true)
+    
+    // Check initial status only on client
     setIsOnline(navigator.onLine)
 
     const handleOnline = () => {
@@ -29,6 +33,9 @@ export default function NetworkStatus() {
     }
   }, [])
 
+  // Don't render anything until mounted to avoid hydration mismatch
+  if (!mounted) return null
+  
   if (!showOffline && isOnline) return null
 
   return (

@@ -315,3 +315,38 @@ Once all steps are completed, admins can:
 5. Start using AI agent immediately
 
 No manual Meta console setup needed for each admin!
+
+🔗 Direct Meta Configuration URLs
+1. App Settings (Basic)
+https://developers.facebook.com/apps/1572646177519931/settings/basic/
+Configure:
+
+App Domains: flowserve.vercel.app
+Add Platform → Website → Site URL: https://flowserve.vercel.app
+Privacy Policy URL: https://flowserve.vercel.app/privacy
+Terms of Service URL: https://flowserve.vercel.app/terms
+2. Facebook Login Settings
+https://developers.facebook.com/apps/1572646177519931/fb-login/settings/
+Configure:
+
+Valid OAuth Redirect URIs: https://flowserve.vercel.app/dashboard/whatsapp-connect
+Allowed Domains: flowserve.vercel.app
+3. WhatsApp Settings
+https://developers.facebook.com/apps/1572646177519931/whatsapp-business/wa-settings/
+Configure:
+
+Callback URL: https://lzofgtjotkmrravxhwfk.supabase.co/functions/v1/whatsapp-webhook
+Verify Token: flowserve_webhook_verify_2025
+Subscribe to: messages, message_status
+4. App Roles (Add Test Users)
+https://developers.facebook.com/apps/1572646177519931/roles/roles/
+Add yourself as Administrator or Developer
+
+5. App Dashboard (Overview)
+https://developers.facebook.com/apps/1572646177519931/dashboard/
+Check app status and add products
+
+✅ Quick Checklist
+Copy these exact values:
+
+| Setting | Value | |---------|-------| | App Domain | flowserve.vercel.app | | Site URL | https://flowserve.vercel.app | | OAuth Redirect | https://flowserve.vercel.app/dashboard/whatsapp-connect | | Privacy URL | https://flowserve.vercel.app/privacy | | Terms URL | https://flowserve.vercel.app/terms | | Webhook URL | https://lzofgtjotkmrravxhwfk.supabase.co/functions/v1/whatsapp-webhook | | Verify Token | flowserve_webhook_verify_2025 |

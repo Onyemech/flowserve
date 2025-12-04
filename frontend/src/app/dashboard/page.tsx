@@ -49,17 +49,59 @@ export default function DashboardPage() {
     
     // Poll for new notifications every 30 seconds
     const interval = setInterval(fetchUnreadCount, 30000);
-    return () => clearInterval(interval);
+    
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT' || !session) {
+        router.push('/auth/login');
+      } else if (event === 'TOKEN_REFRESHED') {
+        console.log('Token refreshed, refetching data');
+        fetchDashboardData();
+      }
+    });
+    
+    return () => {
+      clearInterval(interval);
+      subscription.unsubscribe();
+    };
   }, []);
 
   const fetchDashboardData = async () => {
     try {
-      const res = await fetch('/api/dashboard');
+      // First verify we have a valid session
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        console.error('No valid session:', sessionError);
+        router.push('/auth/login');
+        return;
+      }
+
+      const res = await fetch('/api/dashboard', {
+        headers: {
+          'Cache-Control': 'no-cache',
+        },
+      });
+      
       if (res.ok) {
         const dashboardData = await res.json();
         setData(dashboardData);
       } else if (res.status === 401) {
-        router.push('/auth/login');
+        // Try to refresh the session
+        const { error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError) {
+          console.error('Session refresh failed:', refreshError);
+          router.push('/auth/login');
+        } else {
+          // Retry after refresh
+          const retryRes = await fetch('/api/dashboard');
+          if (retryRes.ok) {
+            const dashboardData = await retryRes.json();
+            setData(dashboardData);
+          } else {
+            router.push('/auth/login');
+          }
+        }
       }
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);

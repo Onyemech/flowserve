@@ -15,9 +15,11 @@ export default function LandingPage() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [isInstallable, setIsInstallable] = useState(false)
   const [isInstalled, setIsInstalled] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    setMounted(true)
+
     // Check if user is logged in
     const checkAuth = async () => {
       const supabase = createClient()
@@ -25,10 +27,7 @@ export default function LandingPage() {
       
       if (user) {
         router.push('/dashboard')
-        return
       }
-      
-      setIsLoading(false)
     }
 
     checkAuth()
@@ -104,7 +103,8 @@ export default function LandingPage() {
     }
   }
 
-  if (isLoading) {
+  // Prevent hydration mismatch by not rendering until mounted
+  if (!mounted) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#0A2540] via-[#103358] to-[#0A2540] flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#20C997]"></div>
